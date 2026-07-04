@@ -14,47 +14,65 @@ import java.util.UUID;
 
 public class TaskBuyItem extends Task
 {
-	private UUID id;
-	
-	public TaskBuyItem()
-	{
-		super("minebay_buy_item");
-	}
-	
-	public TaskBuyItem(UUID id)
-	{
-		this();
-		this.id = id;
-	}
+        private UUID id;
+        private int balance;
 
-	@Override
-	public void prepareRequest(NBTTagCompound nbt)
-	{
-		nbt.setString("id", id.toString());
-	}
+        public TaskBuyItem()
+        {
+                super("minebay_buy_item");
+        }
 
-	@Override
-	public void processRequest(NBTTagCompound nbt, World world, EntityPlayer player)
-	{
-		this.id = UUID.fromString(nbt.getString("id"));
-		AuctionItem item = AuctionManager.INSTANCE.getItem(id);
-		if(item != null && item.isValid())
-		{
-			int price = item.getPrice();
-			Account buyer = BankUtil.INSTANCE.getAccount(player);
-			Account seller = BankUtil.INSTANCE.getAccount(item.getSellerId());
-			if(buyer.pay(seller, price))
-			{
-				item.setSold();
-				world.spawnEntity(new EntityItem(world, player.posX, player.posY, player.posZ, item.getStack().copy()));
-				this.setSuccessful();
-			}
-		}
-	}
+        public TaskBuyItem(UUID id)
+        {
+                this();
+                this.id = id;
+        }
 
-	@Override
-	public void prepareResponse(NBTTagCompound nbt) {}
+        @Override
+        public void prepareRequest(NBTTagCompound nbt)
+        {
+                nbt.setString("id", id.toString());
+        }
 
-	@Override
-	public void processResponse(NBTTagCompound nbt) {}
+        @Override
+        public void processRequest(NBTTagCompound nbt, World world, EntityPlayer player)
+        {
+                this.id = UUID.fromString(nbt.getString("id"));
+
+                AuctionItem item = AuctionManager.INSTANCE.getItem(id);
+                if(item != null && item.isValid())
+                {
+                        // Prevent buying your own auction
+                        if(item.getSellerId().equals(player.getUniqueID()))
+                        {
+                                return;
+                        }
+
+                        int price = item.getPrice();
+
+                        Account buyer = BankUtil.INSTANCE.getAccount(player);
+                        Account seller = BankUtil.INSTANCE.getAccount(item.getSellerId());
+
+                        if(seller != null && buyer.pay(seller, price))
+                        {
+                                item.setSold();
+                                this.balance = buyer.getBalance();
+
+                                world.spawnEntity(new EntityItem(world, player.posX, player.posY, player.posZ, item.getStack().copy()));
+                                this.setSuccessful();
+                        }
+                }
+        }
+
+        @Override
+        public void prepareResponse(NBTTagCompound nbt)
+        {
+                if(isSucessful())
+                {
+                        nbt.setInteger("balance", balance);
+                }
+        }
+
+        @Override
+        public void processResponse(NBTTagCompound nbt) {}
 }

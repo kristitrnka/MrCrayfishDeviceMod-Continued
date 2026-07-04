@@ -4,17 +4,19 @@ import com.mrcrayfish.device.object.Game.Layer;
 import com.mrcrayfish.device.object.tiles.Tile;
 import com.mrcrayfish.device.util.Vec2d;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.model.ModelBoat;
 import net.minecraft.client.model.ModelRenderer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.item.EntityBoat;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.input.Keyboard;
 
 public class Player
 {
-	private static final ResourceLocation boatTextures = new ResourceLocation("textures/entity/boat.png");
+	private static final ResourceLocation boatTextures = new ResourceLocation("textures/entity/boat/oak.png");
 	
 	private Game game;
 	
@@ -26,6 +28,7 @@ public class Player
 	private Vec2d velocity;
 	
 	private ModelBoat boatModel;
+      private EntityBoat dummyBoat;
 	private ModelDummyPlayer playerModel;
 	
 	boolean canMove = false;
@@ -35,6 +38,12 @@ public class Player
 		this.game = game;
 		this.direction = new Vec2d(0, 0);
 		this.velocity = new Vec2d(0, 0);
+
+                // Start the boat on the map instead of cursed top-left 0,0
+                this.posX = 64;
+                this.posY = 32;
+                this.posXPrev = this.posX;
+                this.posYPrev = this.posY;
 		this.boatModel = new ModelBoat();
 		boolean slim = Minecraft.getMinecraft().player.getSkinType().equals("slim");
 		this.playerModel = new ModelDummyPlayer(0F, slim);
@@ -116,40 +125,25 @@ public class Player
 		return (int) (posY / Tile.HEIGHT);
 	}
 	
-	public void render(int x, int y, float partialTicks)
-	{
-		float scale = 0.5F;
-		double px = x + posXPrev + (posX - posXPrev) * partialTicks;
-		double py = y + posYPrev + (posY - posYPrev) * partialTicks;
-        float rot = rotationPrev + (rotation - rotationPrev) * partialTicks;
-        
-        GlStateManager.pushMatrix();
-		GlStateManager.translate((float) px, (float) py, 3.0F);
-		GlStateManager.scale((float) (-scale), (float) -scale, (float) -scale);
-		GlStateManager.rotate(180.0F, 0.0F, 0.0F, 1.0F); //Flips boat up
-		GlStateManager.rotate(90F, 1, 0, 0);
-		GlStateManager.translate(0.0F, -3F, 0.0F);
-		GlStateManager.rotate(-20F, 1.0F, 0.0F, 0.0F);
-		GlStateManager.rotate(rot, 0.0F, 1.0F, 0.0F);
-		Minecraft.getMinecraft().getTextureManager().bindTexture(boatTextures);
-		boatModel.render((Entity) null, 0F, 0F, 0F, 0F, 0F, 1F);
-		GlStateManager.popMatrix();
-		
-		GlStateManager.pushMatrix();
-		GlStateManager.translate((float) px, (float) py, 3.0F);
-		GlStateManager.scale((float) (-scale), (float) scale, (float) scale);
-		// //Flips boat up
-		GlStateManager.rotate(90F, 1, 0, 0);
-		GlStateManager.translate(0.0F, 5.0F, 0.0F);
-		GlStateManager.rotate(20F, 1.0F, 0.0F, 0.0F);
-		GlStateManager.rotate(180.0F, 0.0F, 0.0F, 1.0F);
-		GlStateManager.rotate(rot - 90F, 0.0F, 1.0F, 0.0F);
-		GlStateManager.translate(0F, -12F, 5F);
-		Minecraft.getMinecraft().getTextureManager().bindTexture(Minecraft.getMinecraft().player.getLocationSkin());
-		playerModel.render((Entity) null, 0F, 0F, 0F, 0F, 0F, 1F);
-		GlStateManager.popMatrix();
-	}
-	
+        public void render(int x, int y, float partialTicks)
+        {
+                double px = x + posXPrev + (posX - posXPrev) * partialTicks;
+                double py = y + posYPrev + (posY - posYPrev) * partialTicks;
+                float rot = rotationPrev + (rotation - rotationPrev) * partialTicks;
+
+                GlStateManager.pushMatrix();
+                GlStateManager.translate((float) px, (float) py, 10.0F);
+                GlStateManager.rotate(rot, 0.0F, 0.0F, 1.0F);
+
+                // Simple 2D boat marker. The old 3D ModelBoat render is broken/cursed in this app.
+                Gui.drawRect(-7, -4, 7, 4, 0xFF7A4A20);
+                Gui.drawRect(-5, -6, 5, -4, 0xFFB87534);
+                Gui.drawRect(-3, -3, 3, 3, 0xFFFFFFFF);
+                Gui.drawRect(5, -2, 8, 2, 0xFF2F80ED);
+
+                GlStateManager.popMatrix();
+        }
+
 	public static class ModelDummyPlayer extends ModelBiped
 	{
 		public ModelRenderer bipedLeftArmwear;

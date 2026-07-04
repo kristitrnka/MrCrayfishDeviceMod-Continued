@@ -330,42 +330,53 @@ public class ApplicationBank extends Application
                 layoutAccount = new Layout(220, 130);
                 layoutAccount.setBackground((gui, mc, x, y, width, height, mouseX, mouseY, windowActive) ->
                 {
-                        Gui.drawRect(x, y, x + width, y + height, new Color(35, 48, 39).getRGB());
-                        Gui.drawRect(x, y, x + width, y + 30, new Color(20, 120, 64).getRGB());
+                        Gui.drawRect(x, y, x + width, y + height, new Color(30, 42, 35).getRGB());
+                        Gui.drawRect(x, y, x + width, y + 30, new Color(16, 128, 63).getRGB());
                         Gui.drawRect(x, y + 30, x + width, y + 31, new Color(8, 60, 30).getRGB());
+
+                        // Balance card
+                        Gui.drawRect(x + 78, y + 42, x + 207, y + 72, new Color(236, 232, 205).getRGB());
+                        Gui.drawRect(x + 80, y + 44, x + 205, y + 70, new Color(42, 65, 48).getRGB());
+
+                        // Casey message bubble
+                        Gui.drawRect(x + 72, y + 82, x + 210, y + 116, new Color(236, 232, 205).getRGB());
+                        Gui.drawRect(x + 74, y + 84, x + 208, y + 114, new Color(48, 70, 54).getRGB());
+
+                        // Small bubble tail
+                        Gui.drawRect(x + 68, y + 94, x + 74, y + 102, new Color(236, 232, 205).getRGB());
+                        Gui.drawRect(x + 70, y + 96, x + 74, y + 100, new Color(48, 70, 54).getRGB());
 
                         GlStateManager.pushMatrix();
                         {
                                 GlStateManager.enableDepth();
-                                GlStateManager.translate(x + 32, y + 84, 15);
-                                GlStateManager.scale((float) -2.2, (float) -2.2, (float) -2.2);
+                                GlStateManager.color(1F, 1F, 1F, 1F);
+                                GlStateManager.translate(x + 38, y + 104, 15);
+                                GlStateManager.scale((float) -2.0, (float) -2.0, (float) -2.0);
                                 GlStateManager.rotate(-10F, 1, 0, 0);
                                 GlStateManager.rotate(180F, 0, 0, 1);
-                                GlStateManager.rotate(-20F, 0, 1, 0);
-                                float scaleX = (mouseX - x - 32) / (float) width;
-                                float scaleY = (mouseY - y - 65) / (float) height;
+                                GlStateManager.rotate(-18F, 0, 1, 0);
+                                float scaleX = (mouseX - x - 38) / (float) width;
+                                float scaleY = (mouseY - y - 78) / (float) height;
                                 mc.getTextureManager().bindTexture(villagerTextures);
-                                villagerModel.render(null, 0F, 0F, 0F, -70F * scaleX + 20F, 30F * scaleY, 1F);
+                                villagerModel.render(null, 0F, 0F, 0F, -60F * scaleX + 18F, 25F * scaleY, 1F);
+                                GlStateManager.color(1F, 1F, 1F, 1F);
                                 GlStateManager.disableDepth();
                         }
                         GlStateManager.popMatrix();
-
-                        Gui.drawRect(x + 58, y + 43, x + 210, y + 96, new Color(236, 232, 205).getRGB());
-                        Gui.drawRect(x + 60, y + 45, x + 208, y + 94, new Color(50, 70, 56).getRGB());
                 });
 
-                labelAccountTitle = new Label(TextFormatting.WHITE + TextFormatting.BOLD.toString() + "Emerald Bank Account", 110, 9);
+                labelAccountTitle = new Label(TextFormatting.WHITE + TextFormatting.BOLD.toString() + "Emerald Bank Account", 122, 10);
                 labelAccountTitle.setAlignment(Label.ALIGN_CENTER);
-                labelAccountTitle.setScale(1.1);
+                labelAccountTitle.setScale(1.0);
                 layoutAccount.addComponent(labelAccountTitle);
 
-                labelAccountBalance = new Label(TextFormatting.GREEN + "Balance: Loading...", 135, 58);
+                labelAccountBalance = new Label(TextFormatting.GREEN + "Balance: Loading...", 142, 53);
                 labelAccountBalance.setAlignment(Label.ALIGN_CENTER);
-                labelAccountBalance.setScale(1.1);
+                labelAccountBalance.setScale(1.0);
                 labelAccountBalance.setShadow(false);
                 layoutAccount.addComponent(labelAccountBalance);
 
-                textAccountHelp = new Text(TextFormatting.YELLOW + "Casey The Teller\\n" + TextFormatting.WHITE + "Need help? Call 1-800-EMERALD", 72, 78, 130);
+                textAccountHelp = new Text(TextFormatting.YELLOW + "Casey The Teller\n" + TextFormatting.WHITE + "Need help?\nCall 1-800-EMERALD", 82, 88, 118);
                 layoutAccount.addComponent(textAccountHelp);
 
                 btnAccountBack = new Button(5, 5, Icons.ARROW_LEFT);
@@ -374,8 +385,7 @@ public class ApplicationBank extends Application
                 {
                         if(mouseButton == 0)
                         {
-                                setupAccountLayout();
-                setCurrentLayout(layoutStart);
+                                setCurrentLayout(layoutStart);
                         }
                 });
                 layoutAccount.addComponent(btnAccountBack);
@@ -383,10 +393,24 @@ public class ApplicationBank extends Application
 
         private void updateAccountPage()
         {
-                if(labelAccountBalance != null)
+                if(labelAccountBalance == null)
                 {
-                        labelAccountBalance.setText(TextFormatting.GREEN + "Balance: Open Transfer");
+                        return;
                 }
+
+                labelAccountBalance.setText(TextFormatting.YELLOW + "Balance: Loading...");
+
+                BankUtil.getBalance((nbt, success) ->
+                {
+                        if(success)
+                        {
+                                labelAccountBalance.setText(TextFormatting.GREEN + "Balance: $" + nbt.getInteger("balance"));
+                        }
+                        else
+                        {
+                                labelAccountBalance.setText(TextFormatting.RED + "Balance unavailable");
+                        }
+                });
         }
 
 

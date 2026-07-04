@@ -43,6 +43,10 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.registry.EntityRegistry;
 import org.apache.logging.log4j.Logger;
+import com.mrcrayfish.device.programs.auction.ApplicationMineBay;
+import com.mrcrayfish.device.programs.auction.task.TaskAddAuction;
+import com.mrcrayfish.device.programs.auction.task.TaskGetAuctions;
+import com.mrcrayfish.device.programs.auction.task.TaskBuyItem;
 
 @Mod(modid = Reference.MOD_ID, name = Reference.NAME, version = Reference.VERSION, acceptedMinecraftVersions = Reference.WORKING_MC_VERSION)
 public class MrCrayfishDeviceMod 
@@ -151,12 +155,12 @@ public class MrCrayfishDeviceMod
 		{
 			// Applications (Normal)
 			//ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "boat_racers"), ApplicationBoatRacers.class);
-			//ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "mine_bay"), ApplicationMineBay.class);
+			ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "mine_bay"), ApplicationMineBay.class);
 
 			// Tasks (Normal)
-			//TaskManager.registerTask(TaskAddAuction.class);
-			//TaskManager.registerTask(TaskGetAuctions.class);
-			//TaskManager.registerTask(TaskBuyItem.class);
+			TaskManager.registerTask(TaskAddAuction.class);
+			TaskManager.registerTask(TaskGetAuctions.class);
+			TaskManager.registerTask(TaskBuyItem.class);
 		}
 		else
 		{
