@@ -117,6 +117,7 @@ public class MrCrayfishDeviceMod
 		ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "note_stash"), ApplicationNoteStash.class);
 		ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "pixel_painter"), ApplicationPixelPainter.class);
 		ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "ender_mail"), ApplicationEmail.class);
+                //ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "websurfer"), ApplicationWebSurfer.class);
 		ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "app_store"), ApplicationAppStore.class);
 
 		// Core

@@ -1,0 +1,7 @@
+{
+  "name": "WebSurfer",
+  "author": "Kristihack",
+  "description": "Browse the web directly from your laptop. Requires MCEF.",
+  "version": "1.0",
+  "icon": "cdm:textures/app/icon/gitweb.png"
+}

@@ -25,6 +25,13 @@ import javax.annotation.Nullable;
 import java.awt.*;
 import java.util.List;
 import java.util.Stack;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 
 public class ApplicationSettings extends SystemApplication
 {
@@ -134,18 +141,167 @@ public class ApplicationSettings extends SystemApplication
 			}
 		});
 		layoutPersonalise.addComponent(buttonWallpaperRight);
+                buttonWallpaperUrl = new Button(135, 52, "Load", Icons.EARTH);
+                buttonWallpaperUrl.setSize(55, 20);
+                buttonWallpaperUrl.setClickListener((mouseX, mouseY, mouseButton) ->
+                {
+                        if(mouseButton != 0)
+                                return;
 
-		buttonWallpaperUrl = new Button(135, 52, "Load", Icons.EARTH);
-		buttonWallpaperUrl.setSize(55, 20);
-		buttonWallpaperUrl.setClickListener((mouseX, mouseY, mouseButton) ->
-		{
-			if(mouseButton != 0)
-				return;
+                        Dialog.Input dialog = new Dialog.Input("Enter image URL");
+                        dialog.setInputText("https://i.imgur.com/");
+                        dialog.setResponseHandler((success, input) ->
+                        {
+                                if(!success)
+                                {
+                                        return true;
+                                }
 
-			Dialog dialog = new Dialog.Message("This feature has not be added yet!");
-			openDialog(dialog);
-        });
-		layoutPersonalise.addComponent(buttonWallpaperUrl);
+                                final String urlText = input.trim();
+                                if(urlText.isEmpty() || !(urlText.startsWith("http://") || urlText.startsWith("https://")))
+                                {
+                                        openDialog(new Dialog.Message("Invalid URL. Use http or https direct image link."));
+                                        return false;
+                                }
+
+                                new Thread(() ->
+                                {
+                                        try
+                                        {
+                                                BufferedImage image = null;
+
+                                                String[] urlsToTry;
+                                                if(urlText.contains("imgur.com/") && !urlText.contains("i.imgur.com/"))
+                                                {
+                                                        String id = urlText.substring(urlText.lastIndexOf("/") + 1);
+                                                        int q = id.indexOf("?");
+                                                        if(q != -1) id = id.substring(0, q);
+                                                        urlsToTry = new String[] {
+                                                                "https://i.imgur.com/" + id + ".png",
+                                                                "https://i.imgur.com/" + id + ".jpg",
+                                                                "https://i.imgur.com/" + id + ".jpeg",
+                                                                urlText
+                                                        };
+                                                }
+                                                else if(urlText.contains("i.imgur.com/") && !(urlText.endsWith(".png") || urlText.endsWith(".jpg") || urlText.endsWith(".jpeg")))
+                                                {
+                                                        urlsToTry = new String[] {
+                                                                urlText + ".png",
+                                                                urlText + ".jpg",
+                                                                urlText + ".jpeg",
+                                                                urlText
+                                                        };
+                                                }
+                                                else
+                                                {
+                                                        urlsToTry = new String[] { urlText };
+                                                }
+
+                                                for(String candidate : urlsToTry)
+                                                {
+                                                        try
+                                                        {
+                                                                URL url = new URL(candidate);
+                                                                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                                                                conn.setConnectTimeout(5000);
+                                                                conn.setReadTimeout(10000);
+                                                                conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+
+                                                                conn.setInstanceFollowRedirects(true);
+                                                                conn.setRequestProperty("Accept", "image/png,image/jpeg,image/*,*/*");
+                                                                conn.setRequestProperty("Referer", "https://imgur.com/");
+
+                                                                int code = conn.getResponseCode();
+                                                                if(code >= 200 && code < 300)
+                                                                {
+                                                                        InputStream in = conn.getInputStream();
+                                                                        ByteArrayOutputStream out = new ByteArrayOutputStream();
+                                                                        byte[] buffer = new byte[8192];
+                                                                        int read;
+                                                                        while((read = in.read(buffer)) != -1)
+                                                                        {
+                                                                                out.write(buffer, 0, read);
+                                                                        }
+                                                                        in.close();
+
+                                                                        byte[] bytes = out.toByteArray();
+                                                                        image = ImageIO.read(new ByteArrayInputStream(bytes));
+
+                                                                        if(image != null)
+                                                                        {
+                                                                                break;
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                                System.out.println("[CDM Wallpaper] ImageIO returned null for " + candidate + " content-type=" + conn.getContentType() + " bytes=" + bytes.length);
+                                                                        }
+                                                                }
+                                                                else
+                                                                {
+                                                                        System.out.println("[CDM Wallpaper] HTTP " + code + " for " + candidate);
+                                                                }
+                                                        }
+                                                        catch(Exception ignored) {}
+                                                }
+                                                if(image == null)
+                                                {
+                                                        Minecraft.getMinecraft().addScheduledTask(() ->
+                                                                openDialog(new Dialog.Message("Could not load image. Use a direct PNG/JPG image URL."))
+                                                        );
+                                                        return;
+                                                }
+
+                                                final BufferedImage finalImage = image;
+
+                                                try
+                                                {
+                                                        java.io.File dir = new java.io.File(Minecraft.getMinecraft().mcDataDir, "config/cdm");
+                                                        if(!dir.exists())
+                                                        {
+                                                                dir.mkdirs();
+                                                        }
+
+                                                        javax.imageio.ImageIO.write(finalImage, "png", new java.io.File(dir, "web_wallpaper.png"));
+                                                }
+                                                catch(Exception e)
+                                                {
+                                                        e.printStackTrace();
+                                                }
+
+                                                Minecraft.getMinecraft().addScheduledTask(() ->
+                                                {
+                                                        ResourceLocation location = Minecraft.getMinecraft().getTextureManager().getDynamicTextureLocation(
+                                                                "web_wallpaper",
+                                                                new net.minecraft.client.renderer.texture.DynamicTexture(finalImage)
+                                                        );
+
+                                                        Laptop.addWallpaper(location);
+
+                                                        Laptop laptop = getLaptop();
+                                                        if(laptop != null)
+                                                        {
+                                                                int target = laptop.getWallapapers().size() - 1;
+                                                                while(laptop.getCurrentWallpaper() < target)
+                                                                {
+                                                                        laptop.nextWallpaper();
+                                                                }
+                                                        }
+                                                });
+                                        }
+                                        catch(Exception e)
+                                        {
+                                                e.printStackTrace();
+                                                Minecraft.getMinecraft().addScheduledTask(() ->
+                                                        openDialog(new Dialog.Message("Failed to load wallpaper from web."))
+                                                );
+                                        }
+                                }, "Wallpaper Loader").start();
+
+                                return true;
+                        });
+                        openDialog(dialog);
+                });
+                layoutPersonalise.addComponent(buttonWallpaperUrl);
 
 		Button buttonReset = new Button(6, 100, "Reset Color Scheme");
 		buttonReset.setClickListener((mouseX, mouseY, mouseButton) ->

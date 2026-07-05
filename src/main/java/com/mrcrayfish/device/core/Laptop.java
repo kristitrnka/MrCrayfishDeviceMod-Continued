@@ -59,7 +59,9 @@ public class Laptop extends GuiScreen implements System
 
 	private static final List<Application> APPLICATIONS = new ArrayList<>();
 	private static final List<ResourceLocation> WALLPAPERS = new ArrayList<>();
-
+
+        private static boolean savedWebWallpaperLoaded = false;
+        private static int savedWebWallpaperIndex = -1;
 	private static final int BORDER = 10;
 	private static final int DEVICE_WIDTH = 384;
 	private static final int DEVICE_HEIGHT = 216;
@@ -90,11 +92,17 @@ public class Laptop extends GuiScreen implements System
 		this.systemData = laptop.getSystemData();
 		this.windows = new Window[5];
 		this.settings = Settings.fromTag(systemData.getCompoundTag("Settings"));
-		this.bar = new TaskBar(this);
+		this.bar = new TaskBar(this);
+                loadSavedWebWallpaper();
 		this.currentWallpaper = systemData.getInteger("CurrentWallpaper");
 		if(currentWallpaper < 0 || currentWallpaper >= WALLPAPERS.size()) {
 			this.currentWallpaper = 0;
 		}
+
+                if(savedWebWallpaperIndex >= 0 && savedWebWallpaperIndex < WALLPAPERS.size())
+                {
+                        this.currentWallpaper = savedWebWallpaperIndex;
+                }
 		Laptop.system = this;
 		Laptop.pos = laptop.getPos();
 	}
@@ -693,6 +701,55 @@ public class Laptop extends GuiScreen implements System
 	{
 		return currentWallpaper;
 	}
+        private static void loadSavedWebWallpaper()
+        {
+                java.lang.System.out.println("[CDM Wallpaper] loadSavedWebWallpaper called");
+
+                if(savedWebWallpaperLoaded)
+                {
+                        java.lang.System.out.println("[CDM Wallpaper] already loaded, skipping");
+                        return;
+                }
+
+                savedWebWallpaperLoaded = true;
+
+                try
+                {
+                        java.io.File file = new java.io.File(Minecraft.getMinecraft().mcDataDir, "config/cdm/web_wallpaper.png");
+                        java.lang.System.out.println("[CDM Wallpaper] checking file: " + file.getAbsolutePath());
+                        java.lang.System.out.println("[CDM Wallpaper] exists: " + file.exists());
+
+                        if(!file.exists())
+                        {
+                                return;
+                        }
+
+                        java.awt.image.BufferedImage image = javax.imageio.ImageIO.read(file);
+                        java.lang.System.out.println("[CDM Wallpaper] image loaded: " + (image != null));
+
+                        if(image == null)
+                        {
+                                return;
+                        }
+
+                        ResourceLocation location = Minecraft.getMinecraft().getTextureManager().getDynamicTextureLocation(
+                                "web_wallpaper_saved",
+                                new net.minecraft.client.renderer.texture.DynamicTexture(image)
+                        );
+
+                        savedWebWallpaperIndex = WALLPAPERS.size();
+                        Laptop.addWallpaper(location);
+
+                        java.lang.System.out.println("[CDM Wallpaper] added saved wallpaper at index " + savedWebWallpaperIndex);
+                        java.lang.System.out.println("[CDM Wallpaper] wallpapers now: " + WALLPAPERS.size());
+                }
+                catch(Exception e)
+                {
+                        java.lang.System.out.println("[CDM Wallpaper] failed to load saved wallpaper");
+                        e.printStackTrace();
+                }
+        }
+
 
 	public static void addWallpaper(ResourceLocation wallpaper)
 	{
