@@ -143,6 +143,9 @@ public class MrCrayfishDeviceMod
 		TaskManager.registerTask(TaskGetFiles.class);
 		TaskManager.registerTask(TaskGetStructure.class);
 		TaskManager.registerTask(TaskGetMainDrive.class);
+        TaskManager.registerTask(TaskGetAttachedUsb.class);
+        TaskManager.registerTask(TaskFlashOS.class);
+        TaskManager.registerTask(TaskGetBootOptions.class);
 
 		//Ender Mail
 		TaskManager.registerTask(TaskUpdateInbox.class);
@@ -157,6 +160,7 @@ public class MrCrayfishDeviceMod
 			// Applications (Normal)
 			//ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "boat_racers"), ApplicationBoatRacers.class);
 			ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "mine_bay"), ApplicationMineBay.class);
+        ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "flashator"), ApplicationFlashator.class);
 
 			// Tasks (Normal)
 			TaskManager.registerTask(TaskAddAuction.class);

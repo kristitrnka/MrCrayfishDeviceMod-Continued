@@ -2,8 +2,8 @@
     "name": "MineBay",
     "author": "MrCrayfish",
     "description": "Buy and sell items on MineBay.",
-    "version": "1.0",
-    "icon": "cdm:textures/app/icon/mine_bay.png",
+    "version": "1.1",
+    "icon": "cdm:textures/app/icon/minebay.png",
     "screenshots": [
         "https://i.imgur.com/7CzbiA7.png",
         "https://i.imgur.com/4AiXzf8.jpg",

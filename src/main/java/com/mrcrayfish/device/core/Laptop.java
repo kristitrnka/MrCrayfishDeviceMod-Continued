@@ -98,11 +98,6 @@ public class Laptop extends GuiScreen implements System
 		if(currentWallpaper < 0 || currentWallpaper >= WALLPAPERS.size()) {
 			this.currentWallpaper = 0;
 		}
-
-                if(savedWebWallpaperIndex >= 0 && savedWebWallpaperIndex < WALLPAPERS.size())
-                {
-                        this.currentWallpaper = savedWebWallpaperIndex;
-                }
 		Laptop.system = this;
 		Laptop.pos = laptop.getPos();
 	}

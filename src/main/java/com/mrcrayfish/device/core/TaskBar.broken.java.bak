@@ -1,0 +1,931 @@
+package com.mrcrayfish.device.core;
+
+import com.mrcrayfish.device.MrCrayfishDeviceMod;
+import com.mrcrayfish.device.api.app.Application;
+import com.mrcrayfish.device.api.task.TaskManager;
+import com.mrcrayfish.device.api.utils.RenderUtil;
+import com.mrcrayfish.device.core.io.task.TaskGetBootOptions;
+import com.mrcrayfish.device.core.network.TrayItemWifi;
+import com.mrcrayfish.device.object.AppInfo;
+import com.mrcrayfish.device.object.TrayItem;
+import com.mrcrayfish.device.programs.system.ApplicationAppStore;
+import com.mrcrayfish.device.programs.system.ApplicationFileBrowser;
+import com.mrcrayfish.device.programs.system.ApplicationSettings;
+import com.mrcrayfish.device.programs.system.SystemApplication;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.util.ResourceLocation;
+import org.lwjgl.input.Keyboard;
+import org.lwjgl.opengl.GL11;
+
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+import java.util.function.Predicate;
+
+public class TaskBar
+{
+        public static final ResourceLocation APP_BAR_GUI = new ResourceLocation("cdm:textures/gui/application_bar.png");
+        public static final ResourceLocation POWER_ICONS_GUI = new ResourceLocation("cdm:textures/gui/icons.png");
+        public static final ResourceLocation COMPONENTS_GUI = new ResourceLocation("cdm:textures/gui/components.png");
+
+        private static final int POWER_ICON_U = 170;
+        private static final int POWER_ICON_V = 30;
+
+        private static final int APPS_DISPLAYED = MrCrayfishDeviceMod.DEVELOPER_MODE ? 18 : 10;
+        public static final int BAR_HEIGHT = 18;
+
+        private Laptop laptop;
+
+        private int offset = 0;
+        private int pingTimer = 0;
+
+        private boolean powerMenuOpen = false;
+        private boolean poweredOff = false;
+
+        private boolean bootLoaderOpen = false;
+        private int bootTimer = 0;
+        private int selectedBootOption = 0;
+        private boolean usbBootable = false;
+        private String usbBootName = "";
+        private String usbBootId = "";
+        private String bootMessage = "";
+        private boolean bootingOs = false;
+        private int osBootTimer = 0;
+        private int osBootTotal = 0;
+        private String osBootName = "DeviceOS";
+        private boolean bootKeyHeld = false;
+        private int spinnerTick = 0;
+        private final Random bootRandom = new Random();
+
+        private boolean powerConfirmOpen = false;
+        private int powerConfirmAction = 0; // 1 restart, 2 shutdown
+        private boolean powerTransition = false;
+        private int powerTransitionAction = 0;
+        private int powerTransitionTimer = 0;
+        private int powerTransitionTotal = 0;
+        private String powerTransitionText = "";
+
+        private boolean mineDosInstallerOpen = false;
+        private boolean mineDosInstalling = false;
+        private int mineDosInstallTimer = 0;
+        private int mineDosInstallTotal = 0;
+        private String mineDosInstallerMessage = "Welcome to MineDOS Setup.";
+        private int mineDosInstallerPage = 0;
+        private boolean mineDosLicenseAccepted = false;
+        private int mineDosSelectedDisk = 0;
+        private String mineDosInstallerOsName = "MineDOS";
+        private int mineDosInstallerTheme = 0;
+
+        private void renderMineDosInstaller(Minecraft mc, int x, int y, int mouseX, int mouseY)
+        {
+                int screenTop = y - (Laptop.SCREEN_HEIGHT - BAR_HEIGHT);
+                Color bg = getInstallerBackgroundColor();
+                Color accent = getInstallerAccentColor();
+                Color dark = getInstallerDarkColor();
+
+                Gui.drawRect(x, screenTop, x + Laptop.SCREEN_WIDTH, y + BAR_HEIGHT, bg.getRGB());
+
+                int centerX = x + Laptop.SCREEN_WIDTH / 2;
+                int left = x + 16;
+                int contentY = screenTop + 46;
+
+                if(mineDosInstallerTheme == 0)
+                {
+                        Gui.drawRect(x + 4, screenTop + 4, x + Laptop.SCREEN_WIDTH - 4, y + BAR_HEIGHT - 4, new Color(0, 25, 0).getRGB());
+                        mc.fontRenderer.drawString("C:\\MINE-DOS\\SETUP.EXE", x + 8, screenTop + 8, accent.getRGB(), false);
+                        mc.fontRenderer.drawString("====================================", x + 8, screenTop + 20, accent.getRGB(), false);
+                }
+                else if(mineDosInstallerTheme == 1)
+                {
+                        Gui.drawRect(x, screenTop, x + Laptop.SCREEN_WIDTH, screenTop + 22, dark.getRGB());
+                        Gui.drawRect(x + 8, screenTop + 30, x + Laptop.SCREEN_WIDTH - 8, y + BAR_HEIGHT - 8, new Color(8, 18, 45).getRGB());
+                        mc.fontRenderer.drawString("[ Minux graphical installer ]", x + 10, screenTop + 8, Color.WHITE.getRGB(), true);
+                }
+                else
+                {
+                        Gui.drawRect(x, screenTop, x + Laptop.SCREEN_WIDTH, screenTop + 24, dark.getRGB());
+                        Gui.drawRect(x + 8, screenTop + 32, x + Laptop.SCREEN_WIDTH - 8, y + BAR_HEIGHT - 8, new Color(45, 8, 8).getRGB());
+                        mc.fontRenderer.drawString("!!! DEVICE RECOVERY ENVIRONMENT !!!", x + 10, screenTop + 8, accent.getRGB(), true);
+                }
+
+                String title = mineDosInstallerOsName + " Setup";
+                int titleWidth = mc.fontRenderer.getStringWidth(title);
+                mc.fontRenderer.drawString(title, centerX - titleWidth / 2, screenTop + 31, accent.getRGB(), true);
+
+                if(mineDosInstalling)
+                {
+                        String installing;
+
+                        if(mineDosInstallerTheme == 1)
+                        {
+                                installing = "Installing packages...";
+                        }
+                        else if(mineDosInstallerTheme == 2)
+                        {
+                                installing = "Restoring system image...";
+                        }
+                        else
+                        {
+                                installing = "COPYING SYSTEM FILES...";
+                        }
+
+                        int installingWidth = mc.fontRenderer.getStringWidth(installing);
+                        mc.fontRenderer.drawString(installing, centerX - installingWidth / 2, screenTop + 72, Color.WHITE.getRGB(), true);
+
+                        int done = mineDosInstallTotal - mineDosInstallTimer;
+                        int percent = mineDosInstallTotal <= 0 ? 100 : Math.min(100, done * 100 / mineDosInstallTotal);
+
+                        drawLoadingBar(mc, centerX - 100, screenTop + 94, 200, 10, percent);
+                        mc.fontRenderer.drawString(percent + "%", centerX + 110, screenTop + 95, Color.WHITE.getRGB(), true);
+
+                        if(mineDosInstallerTheme == 0)
+                        {
+                                mc.fontRenderer.drawString("Writing boot sector... do not power off.", centerX - 85, screenTop + 116, accent.getRGB(), false);
+                        }
+                        else if(mineDosInstallerTheme == 1)
+                        {
+                                mc.fontRenderer.drawString("Configuring kernel, init scripts and userspace.", centerX - 100, screenTop + 116, accent.getRGB(), false);
+                        }
+                        else
+                        {
+                                mc.fontRenderer.drawString("Checking disk health and repairing boot data.", centerX - 98, screenTop + 116, accent.getRGB(), false);
+                        }
+
+                        drawBootSpinner(mc, centerX - 6, screenTop + Laptop.SCREEN_HEIGHT - 42);
+                        return;
+                }
+
+                if(mineDosInstallerPage == 0)
+                {
+                        if(mineDosInstallerTheme == 0)
+                        {
+                                mc.fontRenderer.drawString("> Welcome to " + mineDosInstallerOsName + " Setup", left, contentY, accent.getRGB(), true);
+                                mc.fontRenderer.drawString("> This setup will install a DOS-like system.", left, contentY + 14, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("> Keyboard mouse hybrid mode enabled.", left, contentY + 28, Color.WHITE.getRGB(), false);
+                        }
+                        else if(mineDosInstallerTheme == 1)
+                        {
+                                mc.fontRenderer.drawString("Welcome to the Minux installer.", left, contentY, Color.WHITE.getRGB(), true);
+                                mc.fontRenderer.drawString("This installer will prepare partitions and packages.", left, contentY + 14, new Color(200, 220, 255).getRGB(), false);
+                                mc.fontRenderer.drawString("Recommended for advanced laptop users.", left, contentY + 28, new Color(200, 220, 255).getRGB(), false);
+                        }
+                        else
+                        {
+                                mc.fontRenderer.drawString("Recovery mode is active.", left, contentY, accent.getRGB(), true);
+                                mc.fontRenderer.drawString("Use this environment to reinstall or repair the OS.", left, contentY + 14, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("Warning: recovery actions may overwrite data.", left, contentY + 28, new Color(255, 170, 120).getRGB(), false);
+                        }
+
+                        drawInstallerButton(mc, centerX - 70, contentY + 62, 140, 18, "Continue", mouseX, mouseY);
+                        drawInstallerButton(mc, centerX - 70, contentY + 86, 140, 18, "Power Off", mouseX, mouseY);
+                }
+                else if(mineDosInstallerPage == 1)
+                {
+                        mc.fontRenderer.drawString("License Agreement", left, contentY, accent.getRGB(), true);
+
+                        if(mineDosInstallerTheme == 0)
+                        {
+                                mc.fontRenderer.drawString("MINE-DOS LICENSE v1.0", left, contentY + 16, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("You may boot, install and break this OS freely.", left, contentY + 28, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("No warranty. If it explodes, blame the user.", left, contentY + 40, Color.WHITE.getRGB(), false);
+                        }
+                        else if(mineDosInstallerTheme == 1)
+                        {
+                                mc.fontRenderer.drawString("MINUX OPEN SYSTEM LICENSE", left, contentY + 16, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("Packages may be modified, removed or corrupted.", left, contentY + 28, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("Kernel panics are a feature, not a bug.", left, contentY + 40, Color.WHITE.getRGB(), false);
+                        }
+                        else
+                        {
+                                mc.fontRenderer.drawString("RECOVERY TOOL LICENSE", left, contentY + 16, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("This tool can erase, repair or reinstall system files.", left, contentY + 28, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("Proceed only if you know what you are doing.", left, contentY + 40, new Color(255, 170, 120).getRGB(), false);
+                        }
+
+                        String accept = mineDosLicenseAccepted ? "[X] Accept license" : "[ ] Accept license";
+                        drawInstallerButton(mc, left, contentY + 62, 150, 18, accept, mouseX, mouseY);
+
+                        drawInstallerButton(mc, centerX - 105, contentY + 92, 90, 18, "Back", mouseX, mouseY);
+                        drawInstallerButton(mc, centerX + 15, contentY + 92, 90, 18, "Next", mouseX, mouseY);
+                }
+                else if(mineDosInstallerPage == 2)
+                {
+                        mc.fontRenderer.drawString("Drive Configuration", left, contentY, accent.getRGB(), true);
+
+                        if(mineDosInstallerTheme == 0)
+                        {
+                                mc.fontRenderer.drawString("Target drive: C: Main HDD", left, contentY + 18, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("Filesystem: MDFS / FAT-like", left, contentY + 32, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("Boot mode: MBR legacy", left, contentY + 46, Color.WHITE.getRGB(), false);
+                        }
+                        else if(mineDosInstallerTheme == 1)
+                        {
+                                mc.fontRenderer.drawString("Disk: /dev/laptop0", left, contentY + 18, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("Layout: /boot + /root", left, contentY + 32, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("Filesystem: EXT-MC experimental", left, contentY + 46, Color.WHITE.getRGB(), false);
+                        }
+                        else
+                        {
+                                mc.fontRenderer.drawString("Recovery target: Internal Drive", left, contentY + 18, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("Mode: Repair boot + reinstall system", left, contentY + 32, Color.WHITE.getRGB(), false);
+                                mc.fontRenderer.drawString("Format: optional but currently ENABLED", left, contentY + 46, new Color(255, 180, 100).getRGB(), false);
+                        }
+
+                        drawInstallerButton(mc, left, contentY + 66, 190, 18, "Selected: Main Drive", mouseX, mouseY);
+
+                        drawInstallerButton(mc, centerX - 105, contentY + 104, 90, 18, "Back", mouseX, mouseY);
+                        drawInstallerButton(mc, centerX + 15, contentY + 104, 90, 18, "Next", mouseX, mouseY);
+                }
+                else if(mineDosInstallerPage == 3)
+                {
+                        mc.fontRenderer.drawString("Final Confirmation", left, contentY, accent.getRGB(), true);
+                        mc.fontRenderer.drawString("OS: " + mineDosInstallerOsName, left, contentY + 18, Color.WHITE.getRGB(), false);
+                        mc.fontRenderer.drawString("Target: Main Drive", left, contentY + 32, Color.WHITE.getRGB(), false);
+                        mc.fontRenderer.drawString("Install time: 20-35 seconds", left, contentY + 46, Color.WHITE.getRGB(), false);
+
+                        String sure = mineDosInstallerTheme == 2 ? "Are you sure you want to recover this laptop?" : "Are you sure you want to install?";
+                        int sureWidth = mc.fontRenderer.getStringWidth(sure);
+                        mc.fontRenderer.drawString(sure, centerX - sureWidth / 2, contentY + 72, new Color(255, 230, 120).getRGB(), true);
+
+                        drawInstallerButton(mc, centerX - 105, contentY + 98, 90, 18, "Back", mouseX, mouseY);
+                        drawInstallerButton(mc, centerX + 15, contentY + 98, 90, 18, "Install", mouseX, mouseY);
+                }
+                else
+                {
+                        String done = mineDosInstallerMessage;
+                        int doneWidth = mc.fontRenderer.getStringWidth(done);
+                        mc.fontRenderer.drawString(done, centerX - doneWidth / 2, contentY + 24, accent.getRGB(), true);
+
+                        if(mineDosInstallerTheme == 0)
+                        {
+                                mc.fontRenderer.drawString("Remove boot USB and restart into MineDOS.", centerX - 95, contentY + 48, Color.WHITE.getRGB(), false);
+                        }
+                        else if(mineDosInstallerTheme == 1)
+                        {
+                                mc.fontRenderer.drawString("Reboot to finish userspace configuration.", centerX - 95, contentY + 48, Color.WHITE.getRGB(), false);
+                        }
+                        else
+                        {
+                                mc.fontRenderer.drawString("Recovery completed. Restart required.", centerX - 85, contentY + 48, Color.WHITE.getRGB(), false);
+                        }
+
+                        drawInstallerButton(mc, centerX - 70, contentY + 80, 140, 18, "Restart", mouseX, mouseY);
+                }
+        }
+        private void renderPowerConfirm(Minecraft mc, int x, int y, int mouseX, int mouseY)
+        {
+                int screenTop = y - (Laptop.SCREEN_HEIGHT - BAR_HEIGHT);
+                Gui.drawRect(x, screenTop, x + Laptop.SCREEN_WIDTH, y + BAR_HEIGHT, Color.BLACK.getRGB());
+
+                String action = powerConfirmAction == 1 ? "restart" : "shut down";
+                String title = "Are you sure you want to " + action + "?";
+                int titleWidth = mc.fontRenderer.getStringWidth(title);
+
+                int centerX = x + Laptop.SCREEN_WIDTH / 2;
+                int centerY = screenTop + Laptop.SCREEN_HEIGHT / 2;
+
+                mc.fontRenderer.drawString(title, centerX - titleWidth / 2, centerY - 34, Color.WHITE.getRGB(), true);
+
+                int yesX = centerX - 74;
+                int noX = centerX + 10;
+                int btnY = centerY - 4;
+
+                int yesColor = isMouseInside(mouseX, mouseY, yesX, btnY, yesX + 64, btnY + 18)
+                        ? new Color(85, 120, 85).getRGB()
+                        : new Color(55, 85, 55).getRGB();
+
+                int noColor = isMouseInside(mouseX, mouseY, noX, btnY, noX + 64, btnY + 18)
+                        ? new Color(120, 70, 70).getRGB()
+                        : new Color(85, 55, 55).getRGB();
+
+                Gui.drawRect(yesX, btnY, yesX + 64, btnY + 18, Color.DARK_GRAY.getRGB());
+                Gui.drawRect(yesX + 1, btnY + 1, yesX + 63, btnY + 17, yesColor);
+                mc.fontRenderer.drawString("Yes", yesX + 23, btnY + 6, Color.WHITE.getRGB(), true);
+
+                Gui.drawRect(noX, btnY, noX + 64, btnY + 18, Color.DARK_GRAY.getRGB());
+                Gui.drawRect(noX + 1, btnY + 1, noX + 63, btnY + 17, noColor);
+                mc.fontRenderer.drawString("No", noX + 26, btnY + 6, Color.WHITE.getRGB(), true);
+        }
+
+        private void renderPowerTransition(Minecraft mc, int x, int y)
+        {
+                int screenTop = y - (Laptop.SCREEN_HEIGHT - BAR_HEIGHT);
+                Gui.drawRect(x, screenTop, x + Laptop.SCREEN_WIDTH, y + BAR_HEIGHT, Color.BLACK.getRGB());
+
+                int centerX = x + Laptop.SCREEN_WIDTH / 2;
+                int centerY = screenTop + Laptop.SCREEN_HEIGHT / 2;
+
+                int titleWidth = mc.fontRenderer.getStringWidth(powerTransitionText);
+                mc.fontRenderer.drawString(powerTransitionText, centerX - titleWidth / 2, centerY - 18, new Color(85, 255, 85).getRGB(), true);
+
+                String wait = "Please wait...";
+                int waitWidth = mc.fontRenderer.getStringWidth(wait);
+                mc.fontRenderer.drawString(wait, centerX - waitWidth / 2, centerY - 3, new Color(170, 170, 170).getRGB(), true);
+
+                drawBootSpinner(mc, centerX - 6, screenTop + Laptop.SCREEN_HEIGHT - 42);
+        }
+        private void renderPoweredOff(Minecraft mc, int x, int y, int mouseX, int mouseY)
+        {
+                int screenTop = y - (Laptop.SCREEN_HEIGHT - BAR_HEIGHT);
+                Gui.drawRect(x, screenTop, x + Laptop.SCREEN_WIDTH, y + BAR_HEIGHT, Color.BLACK.getRGB());
+
+                mc.fontRenderer.drawString("Powered off", x + 8, screenTop + 8, Color.WHITE.getRGB(), true);
+
+                int btnX = x + (Laptop.SCREEN_WIDTH / 2) - 34;
+                int btnY = screenTop + (Laptop.SCREEN_HEIGHT / 2) - 8;
+
+                int buttonColor = isMouseInside(mouseX, mouseY, btnX, btnY, btnX + 68, btnY + 16)
+                        ? new Color(80, 85, 90).getRGB()
+                        : new Color(55, 60, 65).getRGB();
+
+                Gui.drawRect(btnX, btnY, btnX + 68, btnY + 16, Color.DARK_GRAY.getRGB());
+                Gui.drawRect(btnX + 1, btnY + 1, btnX + 67, btnY + 15, buttonColor);
+                mc.fontRenderer.drawString("Power on", btnX + 10, btnY + 5, Color.WHITE.getRGB(), true);
+        }
+
+        private void renderBootLoader(Minecraft mc, int x, int y)
+        {
+                int screenTop = y - (Laptop.SCREEN_HEIGHT - BAR_HEIGHT);
+                Gui.drawRect(x, screenTop, x + Laptop.SCREEN_WIDTH, y + BAR_HEIGHT, Color.BLACK.getRGB());
+
+                int left = x + 28;
+                int top = screenTop + 22;
+
+                if(bootingOs)
+                {
+                        int centerX = x + Laptop.SCREEN_WIDTH / 2;
+                        int centerY = screenTop + Laptop.SCREEN_HEIGHT / 2;
+
+                        mc.fontRenderer.drawString("Kristihack's Boot Loader", left, top, Color.WHITE.getRGB(), true);
+
+                        String title = "Booting " + osBootName;
+                        int titleWidth = mc.fontRenderer.getStringWidth(title);
+                        mc.fontRenderer.drawString(title, centerX - titleWidth / 2, centerY - 18, new Color(85, 255, 85).getRGB(), true);
+
+                        String wait = "Please wait...";
+                        int waitWidth = mc.fontRenderer.getStringWidth(wait);
+                        mc.fontRenderer.drawString(wait, centerX - waitWidth / 2, centerY - 3, new Color(170, 170, 170).getRGB(), true);
+
+                        drawBootSpinner(mc, centerX - 6, screenTop + Laptop.SCREEN_HEIGHT - 42);
+
+                        return;
+                }
+
+                mc.fontRenderer.drawString("Kristihack's Boot Loader", left, top, Color.WHITE.getRGB(), true);
+                mc.fontRenderer.drawString("Select boot device:", left, top + 22, new Color(180, 180, 180).getRGB(), true);
+
+                drawBootOption(mc, left, top + 43, 0, "DeviceOS", "Installed OS");
+
+                if(usbBootable)
+                {
+                        drawBootOption(mc, left, top + 61, 1, "USB: " + usbBootName, "Bootable flash drive");
+                }
+
+                int seconds = Math.max(0, (bootTimer + 19) / 20);
+                mc.fontRenderer.drawString("Booting default in " + seconds + "s...", left, top + 96, new Color(255, 255, 85).getRGB(), true);
+                mc.fontRenderer.drawString("Use arrow keys and Enter", left, top + 110, new Color(150, 150, 150).getRGB(), true);
+
+                if(bootMessage != null && !bootMessage.isEmpty())
+                {
+                        mc.fontRenderer.drawString(bootMessage, left, top + 128, new Color(85, 255, 85).getRGB(), true);
+                }
+        }
+
+        private void drawBootSpinner(Minecraft mc, int x, int y)
+        {
+                int frame = spinnerTick % 32;
+                int u = (frame % 8) * 12;
+                int v = 12 + (frame / 8) * 12;
+
+                GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+                mc.getTextureManager().bindTexture(COMPONENTS_GUI);
+                Gui.drawModalRectWithCustomSizedTexture(x, y, u, v, 12, 12, 256, 256);
+                mc.getTextureManager().bindTexture(APP_BAR_GUI);
+        }
+        private void drawLoadingBar(Minecraft mc, int x, int y, int width, int height, int progress)
+        {
+                Gui.drawRect(x, y, x + width, y + height, new Color(35, 35, 35).getRGB());
+                Gui.drawRect(x + 1, y + 1, x + width - 1, y + height - 1, Color.BLACK.getRGB());
+
+                int fill = (width - 2) * progress / 100;
+                Gui.drawRect(x + 1, y + 1, x + 1 + fill, y + height - 1, new Color(45, 180, 55).getRGB());
+        }
+        private void drawBootOption(Minecraft mc, int x, int y, int index, String name, String description)
+        {
+                boolean selected = selectedBootOption == index;
+
+                if(selected)
+                {
+                        Gui.drawRect(x - 6, y - 3, x + 220, y + 13, new Color(40, 80, 120).getRGB());
+                        mc.fontRenderer.drawString(">", x - 2, y, Color.WHITE.getRGB(), true);
+                }
+
+                mc.fontRenderer.drawString(name, x + 12, y, selected ? Color.WHITE.getRGB() : new Color(180, 180, 180).getRGB(), true);
+                mc.fontRenderer.drawString(description, x + 150, y, new Color(120, 120, 120).getRGB(), true);
+        }
+
+        private void drawPowerButton(Laptop laptop, Minecraft mc, int x, int y, int mouseX, int mouseY)
+        {
+                boolean hover = isMouseInside(mouseX, mouseY, x, y, x + 14, y + 14);
+
+                int bg = hover ? new Color(78, 82, 88).getRGB() : new Color(55, 58, 64).getRGB();
+
+                Gui.drawRect(x, y, x + 14, y + 14, Color.DARK_GRAY.getRGB());
+                Gui.drawRect(x + 1, y + 1, x + 13, y + 13, bg);
+
+                GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+                mc.getTextureManager().bindTexture(POWER_ICONS_GUI);
+                Gui.drawModalRectWithCustomSizedTexture(x + 2, y + 2, POWER_ICON_U, POWER_ICON_V, 10, 10, 200, 200);
+                mc.getTextureManager().bindTexture(APP_BAR_GUI);
+        }
+
+        private void handleMineDosInstallerClick(int x, int y, int mouseX, int mouseY)
+        {
+                if(mineDosInstalling)
+                {
+                        return;
+                }
+
+                int screenTop = y - (Laptop.SCREEN_HEIGHT - BAR_HEIGHT);
+                int centerX = x + Laptop.SCREEN_WIDTH / 2;
+                int left = x + 16;
+                int contentY = screenTop + 46;
+
+                if(mineDosInstallerPage == 0)
+                {
+                        if(isMouseInside(mouseX, mouseY, centerX - 70, contentY + 62, centerX + 70, contentY + 80))
+                        {
+                                mineDosInstallerPage = 1;
+                                return;
+                        }
+
+                        if(isMouseInside(mouseX, mouseY, centerX - 70, contentY + 86, centerX + 70, contentY + 104))
+                        {
+                                mineDosInstallerOpen = false;
+                                poweredOff = true;
+                                return;
+                        }
+                }
+                else if(mineDosInstallerPage == 1)
+                {
+                        if(isMouseInside(mouseX, mouseY, left, contentY + 62, left + 150, contentY + 80))
+                        {
+                                mineDosLicenseAccepted = !mineDosLicenseAccepted;
+                                return;
+                        }
+
+                        if(isMouseInside(mouseX, mouseY, centerX - 105, contentY + 92, centerX - 15, contentY + 110))
+                        {
+                                mineDosInstallerPage = 0;
+                                return;
+                        }
+
+                        if(isMouseInside(mouseX, mouseY, centerX + 15, contentY + 92, centerX + 105, contentY + 110))
+                        {
+                                if(mineDosLicenseAccepted)
+                                {
+                                        mineDosInstallerPage = 2;
+                                }
+                                else
+                                {
+                                        mineDosInstallerMessage = "Accept the license first.";
+                                }
+                                return;
+                        }
+                }
+                else if(mineDosInstallerPage == 2)
+                {
+                        if(isMouseInside(mouseX, mouseY, left, contentY + 66, left + 190, contentY + 84))
+                        {
+                                mineDosSelectedDisk = 0;
+                                return;
+                        }
+
+                        if(isMouseInside(mouseX, mouseY, centerX - 105, contentY + 104, centerX - 15, contentY + 122))
+                        {
+                                mineDosInstallerPage = 1;
+                                return;
+                        }
+
+                        if(isMouseInside(mouseX, mouseY, centerX + 15, contentY + 104, centerX + 105, contentY + 122))
+                        {
+                                mineDosInstallerPage = 3;
+                                return;
+                        }
+                }
+                else if(mineDosInstallerPage == 3)
+                {
+                        if(isMouseInside(mouseX, mouseY, centerX - 105, contentY + 98, centerX - 15, contentY + 116))
+                        {
+                                mineDosInstallerPage = 2;
+                                return;
+                        }
+
+                        if(isMouseInside(mouseX, mouseY, centerX + 15, contentY + 98, centerX + 105, contentY + 116))
+                        {
+                                mineDosInstalling = true;
+                                mineDosInstallTotal = 400 + bootRandom.nextInt(301);
+                                mineDosInstallTimer = mineDosInstallTotal;
+                                mineDosInstallerMessage = "";
+                                return;
+                        }
+                }
+                else
+                {
+                        if(isMouseInside(mouseX, mouseY, centerX - 70, contentY + 80, centerX + 70, contentY + 98))
+                        {
+                                mineDosInstallerOpen = false;
+                                mineDosInstalling = false;
+                                startBootLoader();
+                                return;
+                        }
+                }
+        }
+
+
+        public void handleClick(Laptop laptop, int x, int y, int mouseX, int mouseY, int mouseButton)
+        {
+                if(mineDosInstallerOpen)
+                {
+                        renderMineDosInstaller(mc, x, y, mouseX, mouseY);
+                        return;
+                }
+
+                if(powerTransition)
+                {
+                        renderPowerTransition(mc, x, y);
+                        return;
+                }
+
+                if(powerConfirmOpen)
+                {
+                        int screenTop = y - (Laptop.SCREEN_HEIGHT - BAR_HEIGHT);
+                        int centerX = x + Laptop.SCREEN_WIDTH / 2;
+                        int centerY = screenTop + Laptop.SCREEN_HEIGHT / 2;
+
+                        int yesX = centerX - 74;
+                        int noX = centerX + 10;
+                        int btnY = centerY - 4;
+
+                        if(isMouseInside(mouseX, mouseY, yesX, btnY, yesX + 64, btnY + 18))
+                        {
+                                startPowerTransition(powerConfirmAction);
+                                return;
+                        }
+
+                        if(isMouseInside(mouseX, mouseY, noX, btnY, noX + 64, btnY + 18))
+                        {
+                                powerConfirmOpen = false;
+                                powerConfirmAction = 0;
+                                return;
+                        }
+
+                        return;
+                }
+
+                if(poweredOff)
+                {
+                        int screenTop = y - (Laptop.SCREEN_HEIGHT - BAR_HEIGHT);
+                        int btnX = x + (Laptop.SCREEN_WIDTH / 2) - 34;
+                        int btnY = screenTop + (Laptop.SCREEN_HEIGHT / 2) - 8;
+
+                        if(isMouseInside(mouseX, mouseY, btnX, btnY, btnX + 68, btnY + 16))
+                        {
+                                startBootLoader();
+                        }
+                        return;
+                }
+
+                if(bootLoaderOpen)
+                {
+                        return;
+                }
+
+                int powerX = x + 257;
+                int powerY = y + 2;
+
+                if(powerMenuOpen)
+                {
+                        int menuX = x + 238;
+                        int menuY = y - 43;
+
+                        if(isMouseInside(mouseX, mouseY, menuX + 3, menuY + 4, menuX + 75, menuY + 19))
+                        {
+                                restartLaptop();
+                                powerMenuOpen = false;
+                                return;
+                        }
+
+                        if(isMouseInside(mouseX, mouseY, menuX + 3, menuY + 22, menuX + 75, menuY + 37))
+                        {
+                                powerOffLaptop();
+                                powerMenuOpen = false;
+                                return;
+                        }
+                }
+
+                if(isMouseInside(mouseX, mouseY, powerX, powerY, powerX + 14, powerY + 14))
+                {
+                        powerMenuOpen = !powerMenuOpen;
+                        return;
+                }
+
+                if(isMouseInside(mouseX, mouseY, x + 1, y + 1, x + 236, y + 16))
+                {
+                        int appIndex = (mouseX - x - 1) / 16;
+                        if(appIndex >= 0 && appIndex <= offset + APPS_DISPLAYED && appIndex < laptop.installedApps.size())
+                        {
+                                laptop.openApplication(laptop.installedApps.get(appIndex));
+                                return;
+                        }
+                }
+
+                int startX = x + 317;
+                for(int i = 0; i < trayItems.size(); i++)
+                {
+                        int posX = startX - (trayItems.size() - 1 - i) * 14;
+                        if(isMouseInside(mouseX, mouseY, posX, y + 2, posX + 13, y + 15))
+                        {
+                                trayItems.get(i).handleClick(mouseX, mouseY, mouseButton);
+                                break;
+                        }
+                }
+        }
+
+        public boolean handleKeyTyped(char character, int code)
+        {
+                if(!bootLoaderOpen)
+                {
+                        return false;
+                }
+
+                if(code == Keyboard.KEY_UP || code == Keyboard.KEY_DOWN)
+                {
+                        if(usbBootable)
+                        {
+                                selectedBootOption = selectedBootOption == 0 ? 1 : 0;
+                        }
+                        else
+                        {
+                                selectedBootOption = 0;
+                        }
+                        return true;
+                }
+
+                if(code == Keyboard.KEY_RETURN || code == Keyboard.KEY_NUMPADENTER)
+                {
+                        finishBoot();
+                        return true;
+                }
+
+                return true;
+        }
+
+        private void handleBootKeyboard()
+        {
+                boolean up = Keyboard.isKeyDown(Keyboard.KEY_UP);
+                boolean down = Keyboard.isKeyDown(Keyboard.KEY_DOWN);
+                boolean enter = Keyboard.isKeyDown(Keyboard.KEY_RETURN) || Keyboard.isKeyDown(Keyboard.KEY_NUMPADENTER);
+                boolean any = up || down || enter;
+
+                if(any && !bootKeyHeld && !bootingOs)
+                {
+                        if(up || down)
+                        {
+                                if(usbBootable)
+                                {
+                                        selectedBootOption = selectedBootOption == 0 ? 1 : 0;
+                                        bootTimer = 100;
+                                }
+                                else
+                                {
+                                        selectedBootOption = 0;
+                                }
+                        }
+
+                        if(enter)
+                        {
+                                beginSelectedBoot();
+                        }
+                }
+
+                bootKeyHeld = any;
+        }
+
+        private void beginSelectedBoot()
+        {
+                bootingOs = true;
+                osBootTotal = 60 + bootRandom.nextInt(81);
+                osBootTimer = osBootTotal;
+
+                if(selectedBootOption == 1 && usbBootable)
+                {
+                        osBootName = usbBootName;
+                }
+                else
+                {
+                        selectedBootOption = 0;
+                        osBootName = "DeviceOS";
+                }
+
+                bootMessage = "";
+        }
+        private void handleMineDosInstallerClick(int x, int y, int mouseX, int mouseY)
+        {
+                if(mineDosInstalling)
+                {
+                        return;
+                }
+
+                int screenTop = y - (Laptop.SCREEN_HEIGHT - BAR_HEIGHT);
+                int centerX = x + Laptop.SCREEN_WIDTH / 2;
+                int top = screenTop + 22;
+
+                int btnX = centerX - 70;
+                int installY = top + 76;
+                int bootY = top + 100;
+                int offY = top + 124;
+
+                if(isMouseInside(mouseX, mouseY, btnX, installY, btnX + 140, installY + 18))
+                {
+                        mineDosInstalling = true;
+                        mineDosInstallTotal = 80 + bootRandom.nextInt(81);
+                        mineDosInstallTimer = mineDosInstallTotal;
+                        mineDosInstallerMessage = "";
+                        return;
+                }
+
+                if(isMouseInside(mouseX, mouseY, btnX, bootY, btnX + 140, bootY + 18))
+                {
+                        mineDosInstallerOpen = false;
+                        mineDosInstalling = false;
+                        startBootLoader();
+                        return;
+                }
+
+                if(isMouseInside(mouseX, mouseY, btnX, offY, btnX + 140, offY + 18))
+                {
+                        mineDosInstallerOpen = false;
+                        mineDosInstalling = false;
+                        poweredOff = true;
+                        return;
+                }
+        }
+        private void restartLaptop()
+        {
+                powerConfirmOpen = true;
+                powerConfirmAction = 1;
+                powerMenuOpen = false;
+        }
+
+        private void powerOffLaptop()
+        {
+                powerConfirmOpen = true;
+                powerConfirmAction = 2;
+                powerMenuOpen = false;
+        }
+
+        private void startPowerTransition(int action)
+        {
+                closeAllApplications();
+
+                powerConfirmOpen = false;
+                powerConfirmAction = 0;
+
+                powerTransition = true;
+                powerTransitionAction = action;
+                powerTransitionTotal = 60 + bootRandom.nextInt(81);
+                powerTransitionTimer = powerTransitionTotal;
+
+                if(action == 1)
+                {
+                        powerTransitionText = "Restarting...";
+                }
+                else
+                {
+                        powerTransitionText = "Shutting down...";
+                }
+        }
+
+        private void finishPowerTransition()
+        {
+                powerTransition = false;
+
+                if(powerTransitionAction == 1)
+                {
+                        powerTransitionAction = 0;
+                        startBootLoader();
+                        return;
+                }
+
+                if(powerTransitionAction == 2)
+                {
+                        powerTransitionAction = 0;
+                        poweredOff = true;
+                        bootLoaderOpen = false;
+                        bootingOs = false;
+                        bootTimer = 0;
+                        bootMessage = "";
+                        return;
+                }
+
+                powerTransitionAction = 0;
+        }
+        private void startBootLoader()
+        {
+                closeAllApplications();
+
+                poweredOff = false;
+                mineDosInstallerOpen = false;
+                mineDosInstalling = false;
+                bootLoaderOpen = true;
+                bootTimer = 100;
+                selectedBootOption = 0;
+                usbBootable = false;
+                usbBootName = "";
+                usbBootId = "";
+                bootMessage = "Scanning boot devices...";
+                bootingOs = false;
+                osBootTimer = 0;
+                osBootTotal = 0;
+                osBootName = "DeviceOS";
+                bootKeyHeld = false;
+
+                TaskGetBootOptions task = new TaskGetBootOptions(Laptop.getPos());
+                task.setCallback((nbt, success) ->
+                {
+                        if(success && nbt.getBoolean("usb_bootable"))
+                        {
+                                usbBootable = true;
+                                usbBootName = nbt.getString("usb_os_name");
+                                usbBootId = nbt.getString("usb_os_id");
+                                bootMessage = "Bootable USB found.";
+                        }
+                        else
+                        {
+                                usbBootable = false;
+                                usbBootName = "";
+                                usbBootId = "";
+                                selectedBootOption = 0;
+                                bootMessage = "No bootable USB found.";
+                        }
+                });
+                TaskManager.sendTask(task);
+
+                if(!Settings.isShowBootMenu())
+                {
+                        beginSelectedBoot();
+                }
+        }
+
+        private void finishBoot()
+        {
+                bootLoaderOpen = false;
+                bootingOs = false;
+                bootTimer = 0;
+                osBootTimer = 0;
+                osBootTotal = 0;
+                bootMessage = "";
+                poweredOff = false;
+
+                if(selectedBootOption == 1 && usbBootable)
+                {
+                        mineDosInstallerOpen = true;
+                        mineDosInstalling = false;
+                        mineDosInstallTimer = 0;
+                        mineDosInstallTotal = 0;
+                        setupMineDosInstallerFromUsb();
+                        return;
+                }
+
+                mineDosInstallerOpen = false;
+        }
+        private void closeAllApplications()
+        {
+                List<AppInfo> copy = new ArrayList<>(laptop.installedApps);
+                for(AppInfo info : copy)
+                {
+                        if(laptop.isApplicationRunning(info))
+                        {
+                                laptop.closeApplication(info);
+                        }
+                }
+        }
+
+        public boolean isMouseInside(int mouseX, int mouseY, int x1, int y1, int x2, int y2)
+        {
+                return mouseX >= x1 && mouseX <= x2 && mouseY >= y1 && mouseY <= y2;
+        }
+
+        public String timeToString(long time)
+        {
+            int hours = (int) ((Math.floor(time / 1000.0) + 7) % 24);
+            int minutes = (int) Math.floor((time % 1000) / 1000.0 * 60);
+            return String.format("%02d:%02d", hours, minutes);
+        }
+}

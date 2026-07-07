@@ -25,6 +25,18 @@ import java.util.function.Predicate;
 
 public class TaskBar
 {
+        private BootUI bootUI;
+
+        private BootUI getBootUI()
+        {
+                if(this.bootUI == null)
+                {
+                        this.bootUI = new BootUI(this.laptop);
+                }
+
+                return this.bootUI;
+        }
+
 	public static final ResourceLocation APP_BAR_GUI = new ResourceLocation("cdm:textures/gui/application_bar.png");
 
 	private static final int APPS_DISPLAYED = MrCrayfishDeviceMod.DEVELOPER_MODE ? 18 : 10;
@@ -82,11 +94,13 @@ public class TaskBar
 
 	public void onTick()
 	{
+                if(getBootUI().onTick()) return;
 		trayItems.forEach(TrayItem::tick);
 	}
 	
 	public void render(Laptop laptop, Minecraft mc, int x, int y, int mouseX, int mouseY, float partialTicks)
 	{
+                if(getBootUI().renderFullScreen(mc, x, y, mouseX, mouseY)) return;
 		GL11.glColor4f(1.0F, 1.0F, 1.0F, 0.75F);
 		GlStateManager.enableBlend();
 		mc.getTextureManager().bindTexture(APP_BAR_GUI);
@@ -116,6 +130,7 @@ public class TaskBar
 		}
 
 		mc.fontRenderer.drawString(timeToString(mc.player.world.getWorldTime()), x + 334, y + 5, Color.WHITE.getRGB(), true);
+                getBootUI().renderTaskbar(mc, x, y, mouseX, mouseY);
 
 		/* Settings App */
 		int startX = x + 317;
@@ -148,6 +163,7 @@ public class TaskBar
 	
 	public void handleClick(Laptop laptop, int x, int y, int mouseX, int mouseY, int mouseButton) 
 	{
+                if(getBootUI().handleClick(x, y, mouseX, mouseY, mouseButton)) return;
 		if(isMouseInside(mouseX, mouseY, x + 1, y + 1, x + 236, y + 16))
 		{
 			int appIndex = (mouseX - x - 1) / 16;
@@ -181,4 +197,9 @@ public class TaskBar
 	    int minutes = (int) Math.floor((time % 1000) / 1000.0 * 60);
 	    return String.format("%02d:%02d", hours, minutes);
 	}
+
+        public boolean handleKeyTyped(char character, int code)
+        {
+                return getBootUI().handleKeyTyped(character, code);
+        }
 }

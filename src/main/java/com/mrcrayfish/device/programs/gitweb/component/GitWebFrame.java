@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 public class GitWebFrame extends Component
 {
     public static final Pattern PATTERN_LINK = Pattern.compile("(?<domain>[a-zA-Z\\-]+)\\.(?<extension>[a-zA-Z]+)(?<directory>(/[a-zA-Z\\-]+)*)(/)?");
+    private static final String GITWEB_REPO_BASE = "https://raw.githubusercontent.com/kristitrnka/GitWeb-Sites/master/";
     private static final Map<String, Module> MODULES = new HashMap<>();
 
     static
@@ -169,7 +170,7 @@ public class GitWebFrame extends Component
 
         if(directory == null)
         {
-            url = "https://raw.githubusercontent.com/MrCrayfish/GitWeb-Sites/master/" + extension + "/" + domain + "/index";
+            url = GITWEB_REPO_BASE + extension + "/" + domain + "/index";
         }
         else
         {
@@ -177,7 +178,7 @@ public class GitWebFrame extends Component
             {
                 directory = directory.substring(0, directory.length() - 1);
             }
-            url = "https://raw.githubusercontent.com/MrCrayfish/GitWeb-Sites/master/" + extension + "/" + domain + directory + "/index";
+            url = GITWEB_REPO_BASE + extension + "/" + domain + directory + "/index";
         }
 
         if(loadingCallback != null)

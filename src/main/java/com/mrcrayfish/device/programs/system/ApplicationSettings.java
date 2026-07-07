@@ -40,6 +40,7 @@ public class ApplicationSettings extends SystemApplication
 	private Layout layoutMain;
 	private Layout layoutGeneral;
 	private CheckBox checkBoxShowApps;
+        private CheckBox checkBoxShowBootMenu;
 
 	private Layout layoutPersonalise;
 	private Button buttonWallpaperLeft;
@@ -85,10 +86,22 @@ public class ApplicationSettings extends SystemApplication
 		});
 		layoutMain.addComponent(buttonColorScheme);
 
+                Button buttonGeneral = new Button(5, 52, "General", Icons.WRENCH);
+                buttonGeneral.setSize(90, 20);
+                buttonGeneral.setToolTip("General", "Change system behaviour and boot options");
+                buttonGeneral.setClickListener((mouseX, mouseY, mouseButton) ->
+                {
+                        if(mouseButton == 0)
+                        {
+                                showMenu(layoutGeneral);
+                        }
+                });
+                layoutMain.addComponent(buttonGeneral);
+
 		layoutGeneral = new Menu("General");
 		layoutGeneral.addComponent(buttonPrevious);
 
-		checkBoxShowApps = new CheckBox("Show All Apps", 5, 5);
+		checkBoxShowApps = new CheckBox("All Apps", 10, 18);
 		checkBoxShowApps.setSelected(Settings.isShowAllApps());
 		checkBoxShowApps.setClickListener((mouseX, mouseY, mouseButton) ->
 		{
@@ -97,6 +110,14 @@ public class ApplicationSettings extends SystemApplication
 			laptop.getTaskBar().setupApplications(laptop.getApplications());
 		});
 		layoutGeneral.addComponent(checkBoxShowApps);
+
+                checkBoxShowBootMenu = new CheckBox("Boot Menu", 10, 42);
+                checkBoxShowBootMenu.setSelected(Settings.isShowBootMenu());
+                checkBoxShowBootMenu.setClickListener((mouseX, mouseY, mouseButton) ->
+                {
+                        Settings.setShowBootMenu(checkBoxShowBootMenu.isSelected());
+                });
+                layoutGeneral.addComponent(checkBoxShowBootMenu);
 
 		layoutPersonalise = new Menu("Personalise");
 		layoutPersonalise.addComponent(buttonPrevious);

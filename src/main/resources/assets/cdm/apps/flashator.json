@@ -1,0 +1,10 @@
+{
+  "name": "Flashator 3000",
+  "author": "Kristihack",
+  "description": "Download ISO images and flash bootable operating systems to USB drives.",
+  "version": "1.2",
+  "icon": "cdm:textures/app/icon/flashator.png",
+  "screenshots": [
+    "cdm:textures/app/screenshot/flashator_screenshot_1.png"
+  ]
+}
