@@ -1,16 +1,17 @@
 [
 {
-  "modid": "cdm",
-  "name": "MrCrayfish's Device Mod - Continued",
-  "description": "Adds working electronic devices into Minecraft!",
-  "version": "0.4.5",
-  "mcversion": "1.12.2",
-  "url": "https://mrcrayfish.com/mods?id=cdm",
+  "modid": "gitwebbuilder",
+  "name": "GitWeb Builder",
+  "description": "A website builder for Gitweb",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
   "updateUrl": "",
-  "authorList": ["Kristihack, MrCrayfish"],
-  "credits": "Thank you MrCrayfish for the base mod.",
+  "authorList": ["Mastef_Chief"],
+  "credits": "The Forge and FML guys, for making this example",
   "logoFile": "",
   "screenshots": [],
-  "dependencies": []
+  "dependencies": [],
+  "parent": "cdm"
 }
 ]
