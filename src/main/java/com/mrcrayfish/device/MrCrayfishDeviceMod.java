@@ -19,6 +19,7 @@ import com.mrcrayfish.device.network.PacketHandler;
 import com.mrcrayfish.device.programs.*;
 import com.mrcrayfish.device.programs.debug.ApplicationTextArea;
 import com.mrcrayfish.device.programs.email.ApplicationEmail;
+import com.mrcrayfish.device.programs.elytrawire.ApplicationElytraWire;
 import com.mrcrayfish.device.programs.email.task.*;
 import com.mrcrayfish.device.programs.example.ApplicationExample;
 import com.mrcrayfish.device.programs.example.task.TaskNotificationTest;
@@ -117,6 +118,8 @@ public class MrCrayfishDeviceMod
 		ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "note_stash"), ApplicationNoteStash.class);
 		ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "pixel_painter"), ApplicationPixelPainter.class);
 		ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "ender_mail"), ApplicationEmail.class);
+                ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "elytra_wire"), ApplicationElytraWire.class);
+                net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(new com.mrcrayfish.device.programs.elytrawire.ElytraWireEvents());
                 //ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "websurfer"), ApplicationWebSurfer.class);
 		ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "app_store"), ApplicationAppStore.class);
 

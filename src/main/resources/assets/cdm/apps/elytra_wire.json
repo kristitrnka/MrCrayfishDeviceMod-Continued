@@ -1,0 +1,7 @@
+{
+    "name": "ElytraWire",
+    "author": "Kristihack",
+    "description": "A real Minecraft DM client for DeviceOS using /msg.",
+    "version": "1.0",
+    "icon": "cdm:textures/app/icon/elytra_wire.png"
+}

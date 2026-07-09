@@ -1,17 +1,16 @@
 [
-{
-  "modid": "gitwebbuilder",
-  "name": "GitWeb Builder",
-  "description": "A website builder for Gitweb",
-  "version": "${version}",
-  "mcversion": "${mcversion}",
-  "url": "",
-  "updateUrl": "",
-  "authorList": ["Mastef_Chief"],
-  "credits": "The Forge and FML guys, for making this example",
-  "logoFile": "",
-  "screenshots": [],
-  "dependencies": [],
-  "parent": "cdm"
-}
+  {
+    "modid": "cdm",
+    "name": "MrCrayfish's Device Mod - Continued",
+    "description": "A continued version of MrCrayfish's Device Mod for Minecraft 1.12.2.",
+    "version": "0.4.1",
+    "mcversion": "1.12.2",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["MrCrayfish", "Kristihack"],
+    "credits": "Original mod by MrCrayfish. GitWeb Builder by Mastef_Chief / Cdez.",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": []
+  }
 ]
