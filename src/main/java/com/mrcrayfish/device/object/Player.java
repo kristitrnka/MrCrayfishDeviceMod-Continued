@@ -8,6 +8,7 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.model.ModelBoat;
 import net.minecraft.client.model.ModelRenderer;
+import net.minecraft.client.model.ModelRenderer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.EntityBoat;
@@ -16,7 +17,7 @@ import org.lwjgl.input.Keyboard;
 
 public class Player
 {
-	private static final ResourceLocation boatTextures = new ResourceLocation("textures/entity/boat/oak.png");
+	private static final ResourceLocation boatTextures = new ResourceLocation("textures/entity/boat/boat_oak.png");
 	
 	private Game game;
 	
@@ -27,7 +28,8 @@ public class Player
 	private Vec2d direction;
 	private Vec2d velocity;
 	
-	private ModelBoat boatModel;
+	private ModelBoatNoPaddles boatModel;
+    private EntityBoat boatEntity;
       private EntityBoat dummyBoat;
 	private ModelDummyPlayer playerModel;
 	
@@ -44,7 +46,7 @@ public class Player
                 this.posY = 32;
                 this.posXPrev = this.posX;
                 this.posYPrev = this.posY;
-		this.boatModel = new ModelBoat();
+		this.boatModel = new ModelBoatNoPaddles();
 		boolean slim = Minecraft.getMinecraft().player.getSkinType().equals("slim");
 		this.playerModel = new ModelDummyPlayer(0F, slim);
 		this.playerModel.isRiding = true;
@@ -52,61 +54,71 @@ public class Player
 	}
 	
 	public void tick()
-	{
-		rotationPrev = rotation;
-		posXPrev = posX;
-		posYPrev = posY;
-		
-		if(Keyboard.isKeyDown(Keyboard.KEY_UP))
-		{	
-			speed += 0.5;
-			if(speed >= 3)
-			{
-				speed = 3;
-			}
-			if(Keyboard.isKeyDown(42) || Keyboard.isKeyDown(54))
-			{
-				speed += 2;
-			}
-		}
-		else
-		{
-			speed /= 1.1;
-		}
-		if(Keyboard.isKeyDown(Keyboard.KEY_LEFT))
-		{
-			rotation -= 8;
-		}
-		if(Keyboard.isKeyDown(Keyboard.KEY_RIGHT))
-		{
-			rotation += 8;
-		}
-		
-		Tile tile = game.getTile(Layer.BACKGROUND, getPosX(), getPosY());
-		if(tile != null && tile.isSlow())
-		{
-			speed *= 0.1;
-		}
-		
-		direction.x = Math.cos(Math.toRadians(rotation));
-		direction.y = Math.sin(Math.toRadians(rotation));
-		direction.normalise();
-		
-		velocity.x = direction.x * speed;
-		velocity.y = direction.y * speed;
-		
-		if(canMove = canMove())
-		{
-			this.posX += velocity.x;
-			this.posY += velocity.y;
-		}
-		else
-		{
-			speed = 0;
-		}
-	}
-	
-	public boolean canMove()
+    {
+        rotationPrev = rotation;
+        posXPrev = posX;
+        posYPrev = posY;
+
+        if(Keyboard.isKeyDown(Keyboard.KEY_W))
+        {
+            speed += 0.5;
+            if(speed >= 3)
+            {
+                speed = 3;
+            }
+
+            if(Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT))
+            {
+                speed += 2;
+            }
+        }
+        else if(Keyboard.isKeyDown(Keyboard.KEY_S))
+        {
+            speed -= 0.35;
+            if(speed <= -1.5)
+            {
+                speed = -1.5;
+            }
+        }
+        else
+        {
+            speed /= 1.1;
+        }
+
+        if(Keyboard.isKeyDown(Keyboard.KEY_A))
+        {
+            rotation -= 8;
+        }
+
+        if(Keyboard.isKeyDown(Keyboard.KEY_D))
+        {
+            rotation += 8;
+        }
+
+        Tile tile = game.getTile(Layer.BACKGROUND, getPosX(), getPosY());
+        if(tile != null && tile.isSlow())
+        {
+            speed *= 0.1;
+        }
+
+        direction.x = Math.cos(Math.toRadians(rotation));
+        direction.y = Math.sin(Math.toRadians(rotation));
+        direction.normalise();
+
+        velocity.x = direction.x * speed;
+        velocity.y = direction.y * speed;
+
+        if(canMove = canMove())
+        {
+            this.posX += velocity.x;
+            this.posY += velocity.y;
+        }
+        else
+        {
+            speed = 0;
+        }
+    }
+    public boolean canMove()
 	{
 		if(posX + velocity.x <= 0) return false;
 		if(posY + velocity.y <= 0) return false;
@@ -126,25 +138,51 @@ public class Player
 	}
 	
         public void render(int x, int y, float partialTicks)
+    {
+        float scale = 0.5F;
+
+        double px = x + posXPrev + (posX - posXPrev) * partialTicks;
+        double py = y + posYPrev + (posY - posYPrev) * partialTicks;
+        float rot = rotationPrev + (rotation - rotationPrev) * partialTicks;
+
+        GlStateManager.pushMatrix();
+        GlStateManager.translate((float) px, (float) py, 3.0F);
+        GlStateManager.scale(-scale, -scale, -scale);
+        GlStateManager.rotate(180.0F, 0.0F, 0.0F, 1.0F);
+        GlStateManager.rotate(90F, 1F, 0F, 0F);
+        GlStateManager.translate(0.0F, -3F, 0.0F);
+        GlStateManager.rotate(-20F, 1.0F, 0.0F, 0.0F);
+        GlStateManager.rotate(rot + 90F, 0.0F, 1.0F, 0.0F);
+
+        Minecraft.getMinecraft().getTextureManager().bindTexture(boatTextures);
+        if(this.boatEntity == null && Minecraft.getMinecraft().world != null)
         {
-                double px = x + posXPrev + (posX - posXPrev) * partialTicks;
-                double py = y + posYPrev + (posY - posYPrev) * partialTicks;
-                float rot = rotationPrev + (rotation - rotationPrev) * partialTicks;
-
-                GlStateManager.pushMatrix();
-                GlStateManager.translate((float) px, (float) py, 10.0F);
-                GlStateManager.rotate(rot, 0.0F, 0.0F, 1.0F);
-
-                // Simple 2D boat marker. The old 3D ModelBoat render is broken/cursed in this app.
-                Gui.drawRect(-7, -4, 7, 4, 0xFF7A4A20);
-                Gui.drawRect(-5, -6, 5, -4, 0xFFB87534);
-                Gui.drawRect(-3, -3, 3, 3, 0xFFFFFFFF);
-                Gui.drawRect(5, -2, 8, 2, 0xFF2F80ED);
-
-                GlStateManager.popMatrix();
+            this.boatEntity = new EntityBoat(Minecraft.getMinecraft().world);
         }
 
-	public static class ModelDummyPlayer extends ModelBiped
+        if(this.boatEntity != null)
+        {
+            boatModel.render(this.boatEntity, 0F, 0F, 0F, 0F, 0F, 1F);
+        }
+
+        GlStateManager.popMatrix();
+
+        GlStateManager.pushMatrix();
+        GlStateManager.translate((float) px, (float) py, 3.0F);
+        GlStateManager.scale(-scale, scale, scale);
+        GlStateManager.rotate(90F, 1F, 0F, 0F);
+        GlStateManager.translate(0.0F, 5.0F, 0.0F);
+        GlStateManager.rotate(20F, 1.0F, 0.0F, 0.0F);
+        GlStateManager.rotate(180.0F, 0.0F, 0.0F, 1.0F);
+        GlStateManager.rotate(rot - 90F, 0.0F, 1.0F, 0.0F);
+        GlStateManager.translate(0F, -7F, 1F);
+
+        Minecraft.getMinecraft().getTextureManager().bindTexture(Minecraft.getMinecraft().player.getLocationSkin());
+        playerModel.render((Entity) null, 0F, 0F, 0F, 0F, 0F, 1F);
+
+        GlStateManager.popMatrix();
+    }
+    public static class ModelDummyPlayer extends ModelBiped
 	{
 		public ModelRenderer bipedLeftArmwear;
 		public ModelRenderer bipedRightArmwear;

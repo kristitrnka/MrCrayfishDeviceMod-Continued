@@ -171,13 +171,13 @@ public class ApplicationBoatRacers extends Application
         });
         layoutEditor.addComponent(btnNextLayer);
 
-        Button btnSave = new Button(266, 132, Icons.SAVE);
-        btnSave.setSize(32, 18);
+        Button btnSave = new Button(266, 132, "Save");
+        btnSave.setSize(50, 18);
         btnSave.setClickListener((mouseX, mouseY, mouseButton) -> saveCurrentWorld(true));
         layoutEditor.addComponent(btnSave);
 
-        Button btnMenu = new Button(304, 132, Icons.HOME);
-        btnMenu.setSize(32, 18);
+        Button btnMenu = new Button(320, 132, "Menu");
+        btnMenu.setSize(50, 18);
         btnMenu.setClickListener((mouseX, mouseY, mouseButton) ->
         {
             saveCurrentWorld(false);
@@ -200,7 +200,7 @@ public class ApplicationBoatRacers extends Application
         checkBoxPlayer.setSelected(true);
         layoutEditor.addComponent(checkBoxPlayer);
 
-        labelStatus = new Label("Slot " + selectedSlot, 338, 132);
+        labelStatus = new Label("Slot " + selectedSlot, 266, 76);
         layoutEditor.addComponent(labelStatus);
 
         setCurrentLayout(layoutEditor);
@@ -272,12 +272,7 @@ public class ApplicationBoatRacers extends Application
 
         for(int layer = 0; layer < 4; layer++)
         {
-            byte[] bytes = new byte[data[layer].length];
-            for(int i = 0; i < data[layer].length; i++)
-            {
-                bytes[i] = (byte) (data[layer][i] + 1);
-            }
-            tag.setByteArray("br_layer" + layer + "b", bytes);
+            tag.setIntArray("br_layer" + layer, data[layer]);
         }
 
         return tag;
@@ -298,13 +293,7 @@ public class ApplicationBoatRacers extends Application
 
         for(int layer = 0; layer < 4; layer++)
         {
-            int[] stored = savedWorlds.getIntArray(key(slot, "layer" + layer));
-            byte[] bytes = new byte[stored.length];
-            for(int i = 0; i < stored.length; i++)
-            {
-                bytes[i] = (byte) (stored[i] + 1);
-            }
-            tag.setByteArray("br_layer" + layer + "b", bytes);
+            tag.setIntArray("br_layer" + layer, savedWorlds.getIntArray(key(slot, "layer" + layer)));
         }
 
         return tag;
@@ -322,22 +311,7 @@ public class ApplicationBoatRacers extends Application
 
         for(int layer = 0; layer < 4; layer++)
         {
-            if(tag.hasKey("br_layer" + layer + "b"))
-            {
-                byte[] bytes = tag.getByteArray("br_layer" + layer + "b");
-                int[] converted = new int[bytes.length];
-
-                for(int i = 0; i < bytes.length; i++)
-                {
-                    converted[i] = (bytes[i] & 255) - 1;
-                }
-
-                savedWorlds.setIntArray(key(slot, "layer" + layer), converted);
-            }
-            else
-            {
-                savedWorlds.setIntArray(key(slot, "layer" + layer), tag.getIntArray("br_layer" + layer));
-            }
+            savedWorlds.setIntArray(key(slot, "layer" + layer), tag.getIntArray("br_layer" + layer));
         }
 
         markDirty();
@@ -362,20 +336,7 @@ public class ApplicationBoatRacers extends Application
 
         for(int layer = 0; layer < 4; layer++)
         {
-            if(tag.hasKey("br_layer" + layer + "b"))
-            {
-                byte[] bytes = tag.getByteArray("br_layer" + layer + "b");
-                data[layer] = new int[bytes.length];
-
-                for(int i = 0; i < bytes.length; i++)
-                {
-                    data[layer][i] = (bytes[i] & 255) - 1;
-                }
-            }
-            else
-            {
-                data[layer] = tag.getIntArray("br_layer" + layer);
-            }
+            data[layer] = tag.getIntArray("br_layer" + layer);
         }
 
         return game.loadMap(width, height, data);
@@ -549,13 +510,13 @@ public class ApplicationBoatRacers extends Application
             }
         }
 
-        Button btnHere = new Button(280, 38, Icons.EXPORT);
-        btnHere.setSize(32, 22);
+        Button btnHere = new Button(280, 38, "Export Here");
+        btnHere.setSize(105, 20);
         btnHere.setClickListener((mouseX, mouseY, mouseButton) -> exportWorldTagToFolder(pendingExportTag, exportFolder));
         layoutExport.addComponent(btnHere);
 
-        Button btnHome = new Button(318, 38, Icons.HOME);
-        btnHome.setSize(32, 22);
+        Button btnHome = new Button(280, 62, "Home");
+        btnHome.setSize(105, 20);
         btnHome.setClickListener((mouseX, mouseY, mouseButton) ->
         {
             Folder home = Laptop.getMainDrive().getFolder(FileSystem.DIR_HOME);
@@ -568,8 +529,8 @@ public class ApplicationBoatRacers extends Application
         });
         layoutExport.addComponent(btnHome);
 
-        Button btnUp = new Button(280, 64, Icons.CHEVRON_UP);
-        btnUp.setSize(32, 22);
+        Button btnUp = new Button(280, 86, "Up");
+        btnUp.setSize(105, 20);
         btnUp.setClickListener((mouseX, mouseY, mouseButton) ->
         {
             if(exportFolder.getParent() instanceof Folder)
@@ -581,8 +542,8 @@ public class ApplicationBoatRacers extends Application
         });
         layoutExport.addComponent(btnUp);
 
-        Button btnCancel = new Button(318, 64, Icons.CROSS);
-        btnCancel.setSize(32, 22);
+        Button btnCancel = new Button(280, 110, "Cancel");
+        btnCancel.setSize(105, 20);
         btnCancel.setClickListener((mouseX, mouseY, mouseButton) -> showWorldMenu());
         layoutExport.addComponent(btnCancel);
 
@@ -610,7 +571,7 @@ public class ApplicationBoatRacers extends Application
             layoutExport.addComponent(btnNext);
         }
 
-        labelExportStatus = new Label("File: " + backupName(selectedSlot), 10, 136);
+        labelExportStatus = new Label("File: " + backupName(selectedSlot), 10, 154);
         layoutExport.addComponent(labelExportStatus);
 
         setCurrentLayout(layoutExport);

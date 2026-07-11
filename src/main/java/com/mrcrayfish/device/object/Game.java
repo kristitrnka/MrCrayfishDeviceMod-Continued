@@ -235,7 +235,23 @@ public class Game extends Component
 		//System.out.println("Rendered game in " + (System.currentTimeMillis() - start));
 	}
 	
-	public static void registerTile(int id, Tile tile)
+	
+    public int[][] exportMap()
+    {
+        int[][] data = new int[4][this.mapWidth * this.mapHeight];
+
+        for(int layer = 0; layer < 4; layer++)
+        {
+            for(int i = 0; i < this.mapWidth * this.mapHeight; i++)
+            {
+                Tile tile = this.tiles[layer][i];
+                data[layer][i] = tile == null ? -1 : tile.id;
+            }
+        }
+
+        return data;
+    }
+public static void registerTile(int id, Tile tile)
 	{
 		registeredTiles.put(id, tile);
 	}

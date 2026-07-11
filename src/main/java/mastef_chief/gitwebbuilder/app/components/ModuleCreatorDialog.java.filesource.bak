@@ -677,7 +677,7 @@ public class ModuleCreatorDialog extends Dialog {
             TextField fileAppTextField = new TextField(5, 18, 162);
             scrollableLayout.addComponent(fileAppTextField);
 
-            Label fileDataLabel = new Label(TextFormatting.RED + "*" + TextFormatting.RESET + "File in /Home:", 5, 38);
+            Label fileDataLabel = new Label(TextFormatting.RED + "*" + TextFormatting.RESET + "File Data:", 5, 38);
             scrollableLayout.addComponent(fileDataLabel);
             TextField fileDataTextField = new TextField(5, 48, 162);
             scrollableLayout.addComponent(fileDataTextField);
@@ -722,7 +722,7 @@ public class ModuleCreatorDialog extends Dialog {
                     selectedTextArea.performReturn();
                     selectedTextArea.writeText("file-app=" + fileAppTextField.getText());
                     selectedTextArea.performReturn();
-                    selectedTextArea.writeText("file-source=home:" + fileDataTextField.getText());
+                    selectedTextArea.writeText("file-data=" + fileDataTextField.getText());
                     selectedTextArea.performReturn();
                     if(!fileNameTextField.getText().isEmpty()){
                         selectedTextArea.writeText("file-name=" + fileNameTextField.getText());

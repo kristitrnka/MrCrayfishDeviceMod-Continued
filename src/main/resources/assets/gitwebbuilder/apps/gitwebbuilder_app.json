@@ -5,8 +5,6 @@
   "version": "1.0",
   "icon": "gitwebbuilder:textures/app/icon/gitwebbuilder_app.png",
   "screenshots": [
-    "http://mastefchief.com/mods/gitwebbuilder/screenshots/screenshot1.png",
-    "http://mastefchief.com/mods/gitwebbuilder/screenshots/screenshot2.png",
-    "http://mastefchief.com/mods/gitwebbuilder/screenshots/screenshot3.png"
+    "gitwebbuilder:textures/app/screenshot/gitweb_builder_screenshot_1.png"
   ]
 }

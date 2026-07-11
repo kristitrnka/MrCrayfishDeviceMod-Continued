@@ -161,7 +161,7 @@ public class MrCrayfishDeviceMod
 		if(!DEVELOPER_MODE)
 		{
 			// Applications (Normal)
-			//ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "boat_racers"), ApplicationBoatRacers.class);
+			ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "boat_racers"), ApplicationBoatRacers.class);
 			ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "mine_bay"), ApplicationMineBay.class);
         ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "flashator"), ApplicationFlashator.class);
 

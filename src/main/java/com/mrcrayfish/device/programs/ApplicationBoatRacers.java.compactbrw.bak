@@ -272,12 +272,7 @@ public class ApplicationBoatRacers extends Application
 
         for(int layer = 0; layer < 4; layer++)
         {
-            byte[] bytes = new byte[data[layer].length];
-            for(int i = 0; i < data[layer].length; i++)
-            {
-                bytes[i] = (byte) (data[layer][i] + 1);
-            }
-            tag.setByteArray("br_layer" + layer + "b", bytes);
+            tag.setIntArray("br_layer" + layer, data[layer]);
         }
 
         return tag;
@@ -298,13 +293,7 @@ public class ApplicationBoatRacers extends Application
 
         for(int layer = 0; layer < 4; layer++)
         {
-            int[] stored = savedWorlds.getIntArray(key(slot, "layer" + layer));
-            byte[] bytes = new byte[stored.length];
-            for(int i = 0; i < stored.length; i++)
-            {
-                bytes[i] = (byte) (stored[i] + 1);
-            }
-            tag.setByteArray("br_layer" + layer + "b", bytes);
+            tag.setIntArray("br_layer" + layer, savedWorlds.getIntArray(key(slot, "layer" + layer)));
         }
 
         return tag;
@@ -322,22 +311,7 @@ public class ApplicationBoatRacers extends Application
 
         for(int layer = 0; layer < 4; layer++)
         {
-            if(tag.hasKey("br_layer" + layer + "b"))
-            {
-                byte[] bytes = tag.getByteArray("br_layer" + layer + "b");
-                int[] converted = new int[bytes.length];
-
-                for(int i = 0; i < bytes.length; i++)
-                {
-                    converted[i] = (bytes[i] & 255) - 1;
-                }
-
-                savedWorlds.setIntArray(key(slot, "layer" + layer), converted);
-            }
-            else
-            {
-                savedWorlds.setIntArray(key(slot, "layer" + layer), tag.getIntArray("br_layer" + layer));
-            }
+            savedWorlds.setIntArray(key(slot, "layer" + layer), tag.getIntArray("br_layer" + layer));
         }
 
         markDirty();
@@ -362,20 +336,7 @@ public class ApplicationBoatRacers extends Application
 
         for(int layer = 0; layer < 4; layer++)
         {
-            if(tag.hasKey("br_layer" + layer + "b"))
-            {
-                byte[] bytes = tag.getByteArray("br_layer" + layer + "b");
-                data[layer] = new int[bytes.length];
-
-                for(int i = 0; i < bytes.length; i++)
-                {
-                    data[layer][i] = (bytes[i] & 255) - 1;
-                }
-            }
-            else
-            {
-                data[layer] = tag.getIntArray("br_layer" + layer);
-            }
+            data[layer] = tag.getIntArray("br_layer" + layer);
         }
 
         return game.loadMap(width, height, data);

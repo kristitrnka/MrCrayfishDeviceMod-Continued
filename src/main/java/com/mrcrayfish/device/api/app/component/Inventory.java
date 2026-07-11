@@ -12,7 +12,7 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
-import scala.actors.threadpool.Arrays;
+import java.util.Arrays;
 
 import java.awt.*;
 

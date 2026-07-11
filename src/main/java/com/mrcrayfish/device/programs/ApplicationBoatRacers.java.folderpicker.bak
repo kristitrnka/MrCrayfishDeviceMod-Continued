@@ -1,0 +1,561 @@
+package com.mrcrayfish.device.programs;
+
+import com.mrcrayfish.device.api.app.Application;
+import com.mrcrayfish.device.api.app.Icons;
+import com.mrcrayfish.device.api.app.Layout;
+import com.mrcrayfish.device.api.app.component.Button;
+import com.mrcrayfish.device.api.app.component.CheckBox;
+import com.mrcrayfish.device.api.app.component.Label;
+import com.mrcrayfish.device.api.io.File;
+import com.mrcrayfish.device.api.io.Folder;
+import com.mrcrayfish.device.api.task.Task;
+import com.mrcrayfish.device.api.task.TaskManager;
+import com.mrcrayfish.device.core.Laptop;
+import com.mrcrayfish.device.core.io.FileSystem;
+import com.mrcrayfish.device.core.io.task.TaskGetMainDrive;
+import com.mrcrayfish.device.object.Game;
+import com.mrcrayfish.device.object.TileGrid;
+import com.mrcrayfish.device.object.tiles.Tile;
+import net.minecraft.nbt.NBTTagCompound;
+
+import javax.annotation.Nullable;
+
+public class ApplicationBoatRacers extends Application
+{
+    private Layout layoutWorlds;
+    private Layout layoutEditor;
+
+    private Game game;
+    private TileGrid tileGrid;
+
+    private Label labelLayer;
+    private Label labelStatus;
+    private Label labelMenuStatus;
+
+    private CheckBox checkBoxForeground;
+    private CheckBox checkBoxBackground;
+    private CheckBox checkBoxPlayer;
+
+    private NBTTagCompound savedWorlds = new NBTTagCompound();
+    private int selectedSlot = 1;
+    private String menuStatus = "";
+
+    public ApplicationBoatRacers()
+    {
+        this.setDefaultWidth(410);
+        this.setDefaultHeight(210);
+    }
+
+    @Override
+    public void init(@Nullable NBTTagCompound intent)
+    {
+        showWorldMenu();
+    }
+
+    private void showWorldMenu()
+    {
+        game = null;
+        labelStatus = null;
+
+        layoutWorlds = new Layout(410, 210);
+
+        layoutWorlds.addComponent(new Label("Boat Racers Worlds", 10, 8));
+        layoutWorlds.addComponent(new Label("Select a saved world slot", 10, 24));
+
+        for(int i = 1; i <= 5; i++)
+        {
+            final int slot = i;
+            String prefix = selectedSlot == slot ? "> " : "  ";
+            String state = hasSavedWorld(slot) ? "SAVED" : "EMPTY";
+
+            Button slotButton = new Button(10, 42 + ((slot - 1) * 24), prefix + "Slot " + slot + "  -  " + state);
+            slotButton.setSize(240, 22);
+            slotButton.setClickListener((mouseX, mouseY, mouseButton) ->
+            {
+                selectedSlot = slot;
+                markDirty();
+                showWorldMenu();
+            });
+            layoutWorlds.addComponent(slotButton);
+        }
+
+        Button btnNew = new Button(280, 42, "New");
+        btnNew.setSize(100, 28);
+        btnNew.setClickListener((mouseX, mouseY, mouseButton) -> openEditor(true));
+        layoutWorlds.addComponent(btnNew);
+
+        Button btnOpen = new Button(280, 78, "Open");
+        btnOpen.setSize(100, 28);
+        btnOpen.setClickListener((mouseX, mouseY, mouseButton) -> openEditor(false));
+        layoutWorlds.addComponent(btnOpen);
+
+        Button btnDelete = new Button(280, 114, "Delete");
+        btnDelete.setSize(100, 28);
+        btnDelete.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            deleteSelectedWorld();
+            showWorldMenu();
+        });
+        layoutWorlds.addComponent(btnDelete);
+
+        Button btnExport = new Button(280, 150, "Export");
+        btnExport.setSize(100, 28);
+        btnExport.setClickListener((mouseX, mouseY, mouseButton) -> exportSavedSlotToFileManager());
+        layoutWorlds.addComponent(btnExport);
+
+        String text = menuStatus.length() > 0 ? menuStatus : "Selected: Slot " + selectedSlot;
+        labelMenuStatus = new Label(text, 10, 182);
+        layoutWorlds.addComponent(labelMenuStatus);
+
+        setCurrentLayout(layoutWorlds);
+    }
+
+    private void openEditor(boolean fresh)
+    {
+        labelMenuStatus = null;
+
+        layoutEditor = new Layout(410, 210);
+
+        try
+        {
+            game = new Game(4, 4, 256, 144);
+            game.setEditorMode(true);
+            game.setRenderPlayer(true);
+            game.fill(Tile.grass);
+            game.setCurrentTile(Tile.water);
+            game.setCurrentLayer(Game.Layer.BACKGROUND);
+            layoutEditor.addComponent(game);
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+        }
+
+        tileGrid = new TileGrid(266, 3, game);
+        layoutEditor.addComponent(tileGrid);
+
+        labelLayer = new Label("Layer 1", 270, 108);
+        layoutEditor.addComponent(labelLayer);
+
+        Button btnPrevLayer = new Button(266, 124, Icons.CHEVRON_LEFT);
+        btnPrevLayer.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            game.prevLayer();
+            labelLayer.setText("Layer " + (game.getCurrentLayer().layer + 1));
+        });
+        layoutEditor.addComponent(btnPrevLayer);
+
+        Button btnNextLayer = new Button(314, 124, Icons.CHEVRON_RIGHT);
+        btnNextLayer.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            game.nextLayer();
+            labelLayer.setText("Layer " + (game.getCurrentLayer().layer + 1));
+        });
+        layoutEditor.addComponent(btnNextLayer);
+
+        Button btnSave = new Button(266, 150, "Save");
+        btnSave.setSize(55, 20);
+        btnSave.setClickListener((mouseX, mouseY, mouseButton) -> saveCurrentWorld(true));
+        layoutEditor.addComponent(btnSave);
+
+        Button btnMenu = new Button(326, 150, "Menu");
+        btnMenu.setSize(55, 20);
+        btnMenu.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            saveCurrentWorld(false);
+            showWorldMenu();
+        });
+        layoutEditor.addComponent(btnMenu);
+
+        Button btnExport = new Button(266, 174, "Export to Files");
+        btnExport.setSize(115, 18);
+        btnExport.setClickListener((mouseX, mouseY, mouseButton) -> exportCurrentWorldToFileManager());
+        layoutEditor.addComponent(btnExport);
+
+        checkBoxBackground = new CheckBox("BG", 3, 151);
+        checkBoxBackground.setClickListener((mouseX, mouseY, mouseButton) -> game.setRenderBackground(checkBoxBackground.isSelected()));
+        checkBoxBackground.setSelected(true);
+        layoutEditor.addComponent(checkBoxBackground);
+
+        checkBoxForeground = new CheckBox("FG", 50, 151);
+        checkBoxForeground.setClickListener((mouseX, mouseY, mouseButton) -> game.setRenderForeground(checkBoxForeground.isSelected()));
+        checkBoxForeground.setSelected(true);
+        layoutEditor.addComponent(checkBoxForeground);
+
+        checkBoxPlayer = new CheckBox("Player", 96, 151);
+        checkBoxPlayer.setClickListener((mouseX, mouseY, mouseButton) -> game.setRenderPlayer(checkBoxPlayer.isSelected()));
+        checkBoxPlayer.setSelected(true);
+        layoutEditor.addComponent(checkBoxPlayer);
+
+        labelStatus = new Label("Slot " + selectedSlot, 3, 176);
+        layoutEditor.addComponent(labelStatus);
+
+        setCurrentLayout(layoutEditor);
+
+        if(fresh)
+        {
+            setStatus("New world in slot " + selectedSlot);
+        }
+        else
+        {
+            if(hasSavedWorld(selectedSlot))
+            {
+                loadSelectedWorld(true);
+            }
+            else
+            {
+                setStatus("Slot " + selectedSlot + " is empty - new world");
+            }
+        }
+    }
+
+    private String key(int slot, String name)
+    {
+        return "slot" + slot + "_" + name;
+    }
+
+    private String key(String name)
+    {
+        return key(selectedSlot, name);
+    }
+
+    private boolean hasSavedWorld(int slot)
+    {
+        return savedWorlds.hasKey(key(slot, "width")) && savedWorlds.hasKey(key(slot, "height"));
+    }
+
+    private NBTTagCompound createWorldTagFromGame()
+    {
+        if(game == null)
+        {
+            return null;
+        }
+
+        int[][] data = game.exportMap();
+
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setString("type", "boat_racers_world");
+        tag.setInteger("format", 1);
+        tag.setInteger("br_width", game.mapWidth);
+        tag.setInteger("br_height", game.mapHeight);
+
+        for(int layer = 0; layer < 4; layer++)
+        {
+            tag.setIntArray("br_layer" + layer, data[layer]);
+        }
+
+        return tag;
+    }
+
+    private NBTTagCompound createWorldTagFromSlot(int slot)
+    {
+        if(!hasSavedWorld(slot))
+        {
+            return null;
+        }
+
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setString("type", "boat_racers_world");
+        tag.setInteger("format", 1);
+        tag.setInteger("br_width", savedWorlds.getInteger(key(slot, "width")));
+        tag.setInteger("br_height", savedWorlds.getInteger(key(slot, "height")));
+
+        for(int layer = 0; layer < 4; layer++)
+        {
+            tag.setIntArray("br_layer" + layer, savedWorlds.getIntArray(key(slot, "layer" + layer)));
+        }
+
+        return tag;
+    }
+
+    private void saveWorldTagToSlot(NBTTagCompound tag, int slot)
+    {
+        if(tag == null)
+        {
+            return;
+        }
+
+        savedWorlds.setInteger(key(slot, "width"), tag.getInteger("br_width"));
+        savedWorlds.setInteger(key(slot, "height"), tag.getInteger("br_height"));
+
+        for(int layer = 0; layer < 4; layer++)
+        {
+            savedWorlds.setIntArray(key(slot, "layer" + layer), tag.getIntArray("br_layer" + layer));
+        }
+
+        markDirty();
+    }
+
+    private boolean loadWorldTag(NBTTagCompound tag)
+    {
+        if(game == null || tag == null)
+        {
+            return false;
+        }
+
+        if(!tag.hasKey("br_width") || !tag.hasKey("br_height"))
+        {
+            return false;
+        }
+
+        int width = tag.getInteger("br_width");
+        int height = tag.getInteger("br_height");
+
+        int[][] data = new int[4][];
+
+        for(int layer = 0; layer < 4; layer++)
+        {
+            data[layer] = tag.getIntArray("br_layer" + layer);
+        }
+
+        return game.loadMap(width, height, data);
+    }
+
+    private void saveCurrentWorld(boolean showStatus)
+    {
+        NBTTagCompound tag = createWorldTagFromGame();
+
+        if(tag == null)
+        {
+            return;
+        }
+
+        saveWorldTagToSlot(tag, selectedSlot);
+
+        if(showStatus)
+        {
+            setStatus("Saved slot " + selectedSlot);
+        }
+    }
+
+    private void loadSelectedWorld(boolean showStatus)
+    {
+        NBTTagCompound tag = createWorldTagFromSlot(selectedSlot);
+
+        if(tag == null)
+        {
+            if(showStatus)
+            {
+                setStatus("Slot " + selectedSlot + " is empty.");
+            }
+            return;
+        }
+
+        boolean loaded = loadWorldTag(tag);
+
+        if(showStatus)
+        {
+            setStatus(loaded ? "Loaded slot " + selectedSlot : "Load failed.");
+        }
+    }
+
+    private void deleteSelectedWorld()
+    {
+        savedWorlds.removeTag(key("width"));
+        savedWorlds.removeTag(key("height"));
+
+        for(int layer = 0; layer < 4; layer++)
+        {
+            savedWorlds.removeTag(key("layer" + layer));
+        }
+
+        menuStatus = "Deleted slot " + selectedSlot;
+        markDirty();
+    }
+
+    private void exportCurrentWorldToFileManager()
+    {
+        NBTTagCompound tag = createWorldTagFromGame();
+
+        if(tag == null)
+        {
+            setStatus("Nothing to export.");
+            return;
+        }
+
+        saveWorldTagToSlot(tag, selectedSlot);
+        exportWorldTagToHome(tag);
+    }
+
+    private void exportSavedSlotToFileManager()
+    {
+        NBTTagCompound tag = createWorldTagFromSlot(selectedSlot);
+
+        if(tag == null)
+        {
+            setMenuStatus("Slot " + selectedSlot + " is empty.");
+            return;
+        }
+
+        exportWorldTagToHome(tag);
+    }
+
+    private void exportWorldTagToHome(NBTTagCompound tag)
+    {
+        if(Laptop.getMainDrive() == null)
+        {
+            if(Laptop.getPos() == null)
+            {
+                setAnyStatus("No laptop drive.");
+                return;
+            }
+
+            Task task = new TaskGetMainDrive(Laptop.getPos());
+            task.setCallback((nbt, success) ->
+            {
+                if(success)
+                {
+                    exportWorldTagToHomeNow(tag);
+                }
+                else
+                {
+                    setAnyStatus("Drive unavailable.");
+                }
+            });
+            TaskManager.sendTask(task);
+            return;
+        }
+
+        exportWorldTagToHomeNow(tag);
+    }
+
+    private void exportWorldTagToHomeNow(NBTTagCompound tag)
+    {
+        if(Laptop.getMainDrive() == null)
+        {
+            setAnyStatus("Drive unavailable.");
+            return;
+        }
+
+        Folder home = Laptop.getMainDrive().getFolder(FileSystem.DIR_HOME);
+
+        if(home == null)
+        {
+            setAnyStatus("Home folder missing.");
+            return;
+        }
+
+        String fileName = "BoatRacers Slot " + selectedSlot + ".brw";
+        File file = new File(fileName, this, tag.copy());
+
+        home.add(file, true, (response, success) ->
+        {
+            if(success)
+            {
+                setAnyStatus("Exported to Home/" + fileName);
+            }
+            else
+            {
+                setAnyStatus("Export failed.");
+            }
+        });
+    }
+
+    private void setStatus(String text)
+    {
+        if(labelStatus != null)
+        {
+            labelStatus.setText(text);
+        }
+    }
+
+    private void setMenuStatus(String text)
+    {
+        menuStatus = text;
+
+        if(labelMenuStatus != null)
+        {
+            labelMenuStatus.setText(text);
+        }
+    }
+
+    private void setAnyStatus(String text)
+    {
+        menuStatus = text;
+
+        if(labelStatus != null)
+        {
+            labelStatus.setText(text);
+        }
+
+        if(labelMenuStatus != null)
+        {
+            labelMenuStatus.setText(text);
+        }
+    }
+
+    @Override
+    public boolean handleFile(File file)
+    {
+        if(file == null)
+        {
+            return false;
+        }
+
+        NBTTagCompound tag = file.getData();
+
+        if(tag == null || !tag.hasKey("br_width") || !tag.hasKey("br_height"))
+        {
+            return false;
+        }
+
+        openEditor(true);
+
+        boolean loaded = loadWorldTag(tag);
+
+        if(loaded)
+        {
+            setStatus("Opened " + file.getName());
+        }
+        else
+        {
+            setStatus("Could not open file.");
+        }
+
+        return loaded;
+    }
+
+    @Override
+    public void load(NBTTagCompound tagCompound)
+    {
+        if(tagCompound == null)
+        {
+            return;
+        }
+
+        selectedSlot = tagCompound.getInteger("selectedSlot");
+
+        if(selectedSlot < 1 || selectedSlot > 5)
+        {
+            selectedSlot = 1;
+        }
+
+        if(tagCompound.hasKey("boatWorlds"))
+        {
+            savedWorlds = tagCompound.getCompoundTag("boatWorlds");
+        }
+        else
+        {
+            savedWorlds = new NBTTagCompound();
+        }
+
+        showWorldMenu();
+    }
+
+    @Override
+    public void save(NBTTagCompound tagCompound)
+    {
+        if(tagCompound == null)
+        {
+            return;
+        }
+
+        if(game != null)
+        {
+            saveCurrentWorld(false);
+        }
+
+        tagCompound.setInteger("selectedSlot", selectedSlot);
+        tagCompound.setTag("boatWorlds", savedWorlds);
+    }
+}
