@@ -1,0 +1,278 @@
+package com.mrcrayfish.device.programs;
+
+import com.mrcrayfish.device.api.app.Application;
+import com.mrcrayfish.device.api.app.Layout;
+import com.mrcrayfish.device.api.app.component.Button;
+import com.mrcrayfish.device.api.app.component.Label;
+import com.mrcrayfish.device.api.app.component.TextArea;
+import com.mrcrayfish.device.api.utils.OnlineRequest;
+import net.minecraft.nbt.NBTTagCompound;
+
+import javax.annotation.Nullable;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public class ApplicationGitTube extends Application
+{
+    private static final String DEFAULT_BASE_URL = "https://raw.githubusercontent.com/kristitrnka/GitTube/main";
+
+    private Layout layoutMain;
+    private TextArea output;
+
+    private String baseUrl = DEFAULT_BASE_URL;
+
+    @Override
+    public void init(@Nullable NBTTagCompound intent)
+    {
+        layoutMain = new Layout(362, 164);
+
+        Label title = new Label("GitTube", 6, 6);
+        layoutMain.addComponent(title);
+
+        Button btnLoad = new Button(6, 22, "Load");
+        btnLoad.setSize(58, 16);
+        btnLoad.setToolTip("Load GitTube", "Downloads GitTube index from GitHub.");
+        btnLoad.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            if(mouseButton == 0)
+            {
+                loadIndex();
+            }
+        });
+        layoutMain.addComponent(btnLoad);
+
+        Button btnFirstVideo = new Button(68, 22, "First Video");
+        btnFirstVideo.setSize(82, 16);
+        btnFirstVideo.setToolTip("Open First Video", "Loads first channel and first video metadata.");
+        btnFirstVideo.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            if(mouseButton == 0)
+            {
+                loadFirstVideo();
+            }
+        });
+        layoutMain.addComponent(btnFirstVideo);
+
+        Button btnReset = new Button(154, 22, "Reset");
+        btnReset.setSize(58, 16);
+        btnReset.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            if(mouseButton == 0)
+            {
+                baseUrl = DEFAULT_BASE_URL;
+                setOutput("GitTube reset.\nBase URL:\n" + baseUrl);
+            }
+        });
+        layoutMain.addComponent(btnReset);
+
+        output = new TextArea(6, 44, 350, 114);
+        output.setPadding(2);
+        output.setText("GitTube MVP\n\nPress Load.\n\nRepo:\n" + DEFAULT_BASE_URL);
+        layoutMain.addComponent(output);
+
+        setCurrentLayout(layoutMain);
+    }
+
+    private void loadIndex()
+    {
+        setOutput("Loading GitTube index...\n" + baseUrl + "/gittube.txt");
+
+        loadUrl(baseUrl + "/gittube.txt", "gittube.txt", response ->
+        {
+            Map<String, String> data = parseKeyValues(response);
+
+            if(data.containsKey("base") && !data.get("base").trim().isEmpty())
+            {
+                baseUrl = data.get("base").trim();
+            }
+
+            loadUrl(baseUrl + "/channels.txt", "channels.txt", channels ->
+            {
+                setOutput(
+                        "GitTube loaded!\n\n" +
+                        "Name: " + get(data, "name", "GitTube") + "\n" +
+                        "Version: " + get(data, "version", "1") + "\n" +
+                        "Base: " + baseUrl + "\n\n" +
+                        "Channels:\n" + channels.trim() + "\n\n" +
+                        "Now click First Video."
+                );
+            });
+        });
+    }
+
+    private void loadFirstVideo()
+    {
+        setOutput("Loading first GitTube video...");
+
+        loadUrl(baseUrl + "/channels.txt", "channels.txt", channelsRaw ->
+        {
+            String channelId = firstEntry(channelsRaw);
+
+            if(channelId.isEmpty())
+            {
+                setOutput("No channels found in channels.txt");
+                return;
+            }
+
+            String channelPath = baseUrl + "/channels/" + channelId;
+
+            loadUrl(channelPath + "/channel.txt", "channel.txt", channelRaw ->
+            {
+                Map<String, String> channel = parseKeyValues(channelRaw);
+
+                loadUrl(channelPath + "/videos.txt", "videos.txt", videosRaw ->
+                {
+                    String videoId = firstEntry(videosRaw);
+
+                    if(videoId.isEmpty())
+                    {
+                        setOutput("No videos found for channel: " + channelId);
+                        return;
+                    }
+
+                    String videoPath = channelPath + "/videos/" + videoId;
+
+                    loadUrl(videoPath + "/video.txt", "video.txt", videoRaw ->
+                    {
+                        Map<String, String> video = parseKeyValues(videoRaw);
+
+                        String thumb = resolveVideoFile(channelId, videoId, get(video, "thumbnail", ""));
+                        String gif = resolveVideoFile(channelId, videoId, get(video, "gif", ""));
+                        String sound = resolveVideoFile(channelId, videoId, get(video, "sound", ""));
+
+                        setOutput(
+                                "Channel:\n" +
+                                get(channel, "name", channelId) + "\n\n" +
+
+                                "Video:\n" +
+                                get(video, "title", videoId) + "\n" +
+                                "Author: " + get(video, "author", get(channel, "name", channelId)) + "\n" +
+                                "Duration: " + get(video, "duration", "?") + "\n" +
+                                "Views: " + get(video, "views", "0") + "\n" +
+                                "Likes: " + get(video, "likes", "0") + "\n\n" +
+
+                                "Description:\n" +
+                                get(video, "description", "") + "\n\n" +
+
+                                "Thumbnail URL:\n" + thumb + "\n\n" +
+                                "GIF URL:\n" + gif + "\n\n" +
+                                "Sound URL:\n" + sound + "\n\n" +
+
+                                "Next step: GIF player."
+                        );
+                    });
+                });
+            });
+        });
+    }
+
+    private void loadUrl(String url, String name, TextCallback callback)
+    {
+        OnlineRequest.getInstance().make(url, (success, response) ->
+        {
+            if(success)
+            {
+                callback.accept(response);
+            }
+            else
+            {
+                setOutput("Failed to load " + name + "\n\n" + url);
+            }
+        });
+    }
+
+    private String resolveVideoFile(String channelId, String videoId, String file)
+    {
+        if(file == null || file.trim().isEmpty())
+        {
+            return "";
+        }
+
+        file = file.trim();
+
+        if(file.startsWith("http://") || file.startsWith("https://"))
+        {
+            return file;
+        }
+
+        return baseUrl + "/channels/" + channelId + "/videos/" + videoId + "/" + file;
+    }
+
+    private Map<String, String> parseKeyValues(String raw)
+    {
+        Map<String, String> map = new LinkedHashMap<>();
+
+        String[] lines = raw.split("\\r?\\n");
+
+        for(String line : lines)
+        {
+            line = line.trim();
+
+            if(line.isEmpty() || line.startsWith("#"))
+            {
+                continue;
+            }
+
+            int index = line.indexOf('=');
+
+            if(index != -1)
+            {
+                String key = line.substring(0, index).trim();
+                String value = line.substring(index + 1).trim();
+                map.put(key, value);
+            }
+        }
+
+        return map;
+    }
+
+    private String firstEntry(String raw)
+    {
+        String[] lines = raw.split("\\r?\\n");
+
+        for(String line : lines)
+        {
+            line = line.trim();
+
+            if(!line.isEmpty() && !line.startsWith("#"))
+            {
+                return line;
+            }
+        }
+
+        return "";
+    }
+
+    private String get(Map<String, String> map, String key, String fallback)
+    {
+        if(map.containsKey(key))
+        {
+            return map.get(key);
+        }
+
+        return fallback;
+    }
+
+    private void setOutput(String text)
+    {
+        if(output != null)
+        {
+            output.setText(text);
+        }
+    }
+
+    @Override
+    public void load(NBTTagCompound tagCompound)
+    {
+    }
+
+    @Override
+    public void save(NBTTagCompound tagCompound)
+    {
+    }
+
+    private interface TextCallback
+    {
+        void accept(String text);
+    }
+}

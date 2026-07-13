@@ -1,0 +1,354 @@
+package com.mrcrayfish.device.programs;
+
+import com.mrcrayfish.device.api.app.Application;
+import com.mrcrayfish.device.api.app.Layout;
+import com.mrcrayfish.device.api.app.component.Button;
+import com.mrcrayfish.device.api.utils.OnlineRequest;
+import com.mrcrayfish.device.api.utils.RenderUtil;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
+import net.minecraft.nbt.NBTTagCompound;
+
+import javax.annotation.Nullable;
+import java.awt.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public class ApplicationGitTube extends Application
+{
+    private static final String DEFAULT_BASE_URL = "https://raw.githubusercontent.com/kristitrnka/GitTube/main";
+
+    private Layout layoutMain;
+
+    private String baseUrl = DEFAULT_BASE_URL;
+    private String statusText = "Welcome to GitTube";
+    private String selectedVideo = "";
+
+    private final VideoCard[] videos = new VideoCard[]
+    {
+            new VideoCard("Boat Racers Trailer", "Kristihack", "1,240 views", "1 day ago", "0:18", 0x1E90FF),
+            new VideoCard("Device Mod Continued Showcase", "Kristihack", "4,039 views", "3 weeks ago", "2:41", 0x00AA44),
+            new VideoCard("GitWeb Builder Update", "Device News", "627 views", "2 days ago", "1:35", 0xDD3333),
+            new VideoCard("50 Things YOU Can Make in Minecraft", "Mumbo Jumbo", "1,027,107 views", "1 day ago", "22:01", 0xDDAA00),
+            new VideoCard("PC Destructor GIF Benchmark", "GitTube Labs", "999 views", "now", "?:??", 0x9900DD),
+            new VideoCard("Pixel Painter Speed Art", "MineStudio", "17,409 views", "5 years ago", "14:16", 0x4444DD)
+    };
+
+    @Override
+    public void init(@Nullable NBTTagCompound intent)
+    {
+        layoutMain = new Layout(362, 164);
+
+        Button btnHome = new Button(5, 32, "Home");
+        btnHome.setSize(62, 14);
+        btnHome.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            if(mouseButton == 0)
+            {
+                statusText = "Home";
+            }
+        });
+        layoutMain.addComponent(btnHome);
+
+        Button btnMyChannel = new Button(5, 49, "Channel");
+        btnMyChannel.setSize(62, 14);
+        btnMyChannel.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            if(mouseButton == 0)
+            {
+                statusText = "My channel is coming soon.";
+            }
+        });
+        layoutMain.addComponent(btnMyChannel);
+
+        Button btnTrending = new Button(5, 66, "Trending");
+        btnTrending.setSize(62, 14);
+        btnTrending.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            if(mouseButton == 0)
+            {
+                statusText = "Trending videos are coming soon.";
+            }
+        });
+        layoutMain.addComponent(btnTrending);
+
+        Button btnSubs = new Button(5, 83, "Subs");
+        btnSubs.setSize(62, 14);
+        btnSubs.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            if(mouseButton == 0)
+            {
+                statusText = "Subscriptions are coming soon.";
+            }
+        });
+        layoutMain.addComponent(btnSubs);
+
+        Button btnLoad = new Button(255, 6, "Load");
+        btnLoad.setSize(42, 14);
+        btnLoad.setToolTip("Load GitTube", "Downloads GitTube index from GitHub.");
+        btnLoad.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            if(mouseButton == 0)
+            {
+                loadIndex();
+            }
+        });
+        layoutMain.addComponent(btnLoad);
+
+        Button btnSearch = new Button(300, 6, "Search");
+        btnSearch.setSize(55, 14);
+        btnSearch.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            if(mouseButton == 0)
+            {
+                statusText = "Search is not implemented yet.";
+            }
+        });
+        layoutMain.addComponent(btnSearch);
+
+        addVideoButtons();
+
+        setCurrentLayout(layoutMain);
+    }
+
+    private void addVideoButtons()
+    {
+        int startX = 82;
+        int startY = 52;
+        int cardW = 84;
+        int cardH = 49;
+        int gapX = 6;
+        int gapY = 49;
+
+        for(int i = 0; i < videos.length; i++)
+        {
+            int col = i % 3;
+            int row = i / 3;
+
+            int x = startX + col * (cardW + gapX);
+            int y = startY + row * gapY;
+
+            final int index = i;
+
+            Button play = new Button(x + cardW - 25, y + 24, "Play");
+            play.setSize(24, 12);
+            play.setClickListener((mouseX, mouseY, mouseButton) ->
+            {
+                if(mouseButton == 0)
+                {
+                    selectedVideo = videos[index].title;
+                    statusText = "Selected: " + selectedVideo + " | GIF player coming soon.";
+                }
+            });
+            layoutMain.addComponent(play);
+        }
+    }
+
+    @Override
+    public void render(com.mrcrayfish.device.core.Laptop laptop, Minecraft mc, int x, int y, int mouseX, int mouseY, boolean active, float partialTicks)
+    {
+        super.render(laptop, mc, x, y, mouseX, mouseY, active, partialTicks);
+
+        drawGitTubeUI(mc, x, y);
+    }
+
+    private void drawGitTubeUI(Minecraft mc, int x, int y)
+    {
+        // main background
+        Gui.drawRect(x, y, x + 362, y + 164, 0xFFEFEFEF);
+
+        // top bar
+        Gui.drawRect(x, y, x + 362, y + 25, 0xFFFFFFFF);
+        Gui.drawRect(x, y + 24, x + 362, y + 25, 0xFFCCCCCC);
+
+        // logo
+        Gui.drawRect(x + 8, y + 6, x + 28, y + 20, 0xFFE62117);
+        drawCentered(mc, ">", x + 18, y + 9, 0xFFFFFFFF);
+        mc.fontRenderer.drawString("GitTube", x + 32, y + 9, 0xFF000000);
+
+        // search bar
+        Gui.drawRect(x + 86, y + 6, x + 250, y + 20, 0xFFDDDDDD);
+        Gui.drawRect(x + 87, y + 7, x + 249, y + 19, 0xFFFFFFFF);
+        mc.fontRenderer.drawString("Search", x + 91, y + 10, 0xFF777777);
+
+        // sidebar
+        Gui.drawRect(x, y + 25, x + 75, y + 164, 0xFFF7F7F7);
+        Gui.drawRect(x, y + 29, x + 75, y + 30, 0xFFE0E0E0);
+
+        mc.fontRenderer.drawString("LIBRARY", x + 8, y + 106, 0xFFCC0000);
+        mc.fontRenderer.drawString("History", x + 12, y + 119, 0xFF333333);
+        mc.fontRenderer.drawString("Watch later", x + 12, y + 132, 0xFF333333);
+        mc.fontRenderer.drawString("Liked videos", x + 12, y + 145, 0xFF333333);
+
+        // tabs
+        mc.fontRenderer.drawString("Home", x + 164, y + 31, 0xFF000000);
+        mc.fontRenderer.drawString("Trending", x + 204, y + 31, 0xFF444444);
+        mc.fontRenderer.drawString("Subscriptions", x + 256, y + 31, 0xFF444444);
+        Gui.drawRect(x + 164, y + 41, x + 190, y + 43, 0xFFE62117);
+
+        // content background
+        Gui.drawRect(x + 75, y + 43, x + 362, y + 164, 0xFFE9E9E9);
+        mc.fontRenderer.drawString("Recommended", x + 82, y + 47, 0xFF000000);
+
+        drawVideoGrid(mc, x, y);
+
+        // status bottom
+        Gui.drawRect(x + 75, y + 151, x + 362, y + 164, 0xFFFFFFFF);
+        RenderUtil.drawStringClipped(statusText, x + 80, y + 154, 270, 0xFF555555, false);
+    }
+
+    private void drawVideoGrid(Minecraft mc, int x, int y)
+    {
+        int startX = x + 82;
+        int startY = y + 58;
+        int cardW = 84;
+        int cardH = 49;
+        int gapX = 6;
+        int gapY = 49;
+
+        for(int i = 0; i < videos.length; i++)
+        {
+            int col = i % 3;
+            int row = i / 3;
+
+            int cardX = startX + col * (cardW + gapX);
+            int cardY = startY + row * gapY;
+
+            drawVideoCard(mc, videos[i], cardX, cardY, cardW, cardH);
+        }
+    }
+
+    private void drawVideoCard(Minecraft mc, VideoCard video, int x, int y, int w, int h)
+    {
+        // thumbnail
+        Gui.drawRect(x, y, x + w, y + 28, 0xFF222222);
+        Gui.drawRect(x + 1, y + 1, x + w - 1, y + 27, 0xFF000000 | video.color);
+
+        // fake thumbnail detail
+        Gui.drawRect(x + 5, y + 5, x + w - 5, y + 9, 0x66FFFFFF);
+        Gui.drawRect(x + 8, y + 13, x + w - 16, y + 18, 0x66000000);
+        drawCentered(mc, "GIF", x + w / 2, y + 11, 0xFFFFFFFF);
+
+        // duration
+        int durWidth = mc.fontRenderer.getStringWidth(video.duration) + 4;
+        Gui.drawRect(x + w - durWidth, y + 18, x + w, y + 28, 0xAA000000);
+        mc.fontRenderer.drawString(video.duration, x + w - durWidth + 2, y + 20, 0xFFFFFFFF);
+
+        // title + meta
+        RenderUtil.drawStringClipped(video.title, x, y + 31, w, 0xFF0066CC, false);
+        RenderUtil.drawStringClipped(video.author, x, y + 41, w, 0xFF555555, false);
+    }
+
+    private void drawCentered(Minecraft mc, String text, int x, int y, int color)
+    {
+        mc.fontRenderer.drawString(text, x - mc.fontRenderer.getStringWidth(text) / 2, y, color);
+    }
+
+    private void loadIndex()
+    {
+        statusText = "Loading GitTube index...";
+
+        loadUrl(baseUrl + "/gittube.txt", "gittube.txt", response ->
+        {
+            Map<String, String> data = parseKeyValues(response);
+
+            if(data.containsKey("base") && !data.get("base").trim().isEmpty())
+            {
+                baseUrl = data.get("base").trim();
+            }
+
+            loadUrl(baseUrl + "/channels.txt", "channels.txt", channels ->
+            {
+                statusText = "Loaded: " + get(data, "name", "GitTube") + " | Channels: " + channels.trim().replace("\n", ", ");
+            });
+        });
+    }
+
+    private void loadUrl(String url, String name, TextCallback callback)
+    {
+        OnlineRequest.getInstance().make(url, (success, response) ->
+        {
+            if(success)
+            {
+                callback.accept(response);
+            }
+            else
+            {
+                statusText = "Failed to load " + name;
+            }
+        });
+    }
+
+    private Map<String, String> parseKeyValues(String raw)
+    {
+        Map<String, String> map = new LinkedHashMap<>();
+
+        String[] lines = raw.split("\\r?\\n");
+
+        for(String line : lines)
+        {
+            line = line.trim();
+
+            if(line.isEmpty() || line.startsWith("#"))
+            {
+                continue;
+            }
+
+            int index = line.indexOf('=');
+
+            if(index != -1)
+            {
+                String key = line.substring(0, index).trim();
+                String value = line.substring(index + 1).trim();
+                map.put(key, value);
+            }
+        }
+
+        return map;
+    }
+
+    private String get(Map<String, String> map, String key, String fallback)
+    {
+        if(map.containsKey(key))
+        {
+            return map.get(key);
+        }
+
+        return fallback;
+    }
+
+    @Override
+    public void load(NBTTagCompound tagCompound)
+    {
+    }
+
+    @Override
+    public void save(NBTTagCompound tagCompound)
+    {
+    }
+
+    private interface TextCallback
+    {
+        void accept(String text);
+    }
+
+    private static class VideoCard
+    {
+        private String title;
+        private String author;
+        private String views;
+        private String age;
+        private String duration;
+        private int color;
+
+        private VideoCard(String title, String author, String views, String age, String duration, int color)
+        {
+            this.title = title;
+            this.author = author;
+            this.views = views;
+            this.age = age;
+            this.duration = duration;
+            this.color = color;
+        }
+    }
+}
