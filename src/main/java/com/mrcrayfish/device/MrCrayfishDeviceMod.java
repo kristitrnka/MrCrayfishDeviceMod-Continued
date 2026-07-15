@@ -123,6 +123,7 @@ public class MrCrayfishDeviceMod
                 net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(new com.mrcrayfish.device.programs.elytrawire.ElytraWireEvents());
                 //ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "websurfer"), ApplicationWebSurfer.class);
 		ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "app_store"), ApplicationAppStore.class);
+		ApplicationManager.registerApplication(new ResourceLocation(Reference.MOD_ID, "security_cameras"), ApplicationSecurityCameras.class);
 
 		// Core
 		TaskManager.registerTask(TaskInstallApp.class);

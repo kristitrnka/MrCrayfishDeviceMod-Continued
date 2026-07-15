@@ -10,6 +10,7 @@ public class DeviceTileEntites
 		GameRegistry.registerTileEntity(TileEntityLaptop.class, "cdm:laptop");
         GameRegistry.registerTileEntity(TileEntityRouter.class, "cdm:router");
 		GameRegistry.registerTileEntity(TileEntityPrinter.class, "cdm:printer");
+		GameRegistry.registerTileEntity(TileEntitySecurityCamera.class, "cdm:security_camera");
 		GameRegistry.registerTileEntity(TileEntityPaper.class, "cdm:printed_paper");
 		GameRegistry.registerTileEntity(TileEntityOfficeChair.class, "cdm:office_chair");
 	}

@@ -3,6 +3,7 @@ itemGroup.cdmTabDevice=MrCrayfish's Device Mod
 tile.laptop.name=Laptop
 tile.router.name=Router
 tile.printer.name=Printer
+tile.security_camera.name=Security Camera
 tile.paper.name=Paper
 tile.office_chair.name=Office Chair
 

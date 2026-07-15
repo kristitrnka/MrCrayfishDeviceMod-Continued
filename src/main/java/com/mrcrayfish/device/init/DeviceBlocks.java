@@ -12,6 +12,7 @@ public class DeviceBlocks
 	public static final Block LAPTOP;
     public static final Block ROUTER;
 	public static final Block PRINTER;
+	public static final Block SECURITY_CAMERA;
 	public static final Block PAPER;
 
 	public static final Block OFFICE_CHAIR;
@@ -21,6 +22,7 @@ public class DeviceBlocks
 		LAPTOP = new BlockLaptop();
         ROUTER = new BlockRouter();
 		PRINTER = new BlockPrinter();
+		SECURITY_CAMERA = new BlockSecurityCamera();
 		PAPER = new BlockPaper();
 
 		OFFICE_CHAIR = new BlockOfficeChair();
@@ -31,6 +33,7 @@ public class DeviceBlocks
 		registerBlock(LAPTOP, new ItemColoredDevice(LAPTOP));
         registerBlock(ROUTER, new ItemColoredDevice(ROUTER));
 		registerBlock(PRINTER, new ItemColoredDevice(PRINTER));
+		registerBlock(SECURITY_CAMERA);
 		registerBlock(PAPER, new ItemPaper(PAPER));
 
 		registerBlock(OFFICE_CHAIR, new ItemColoredDevice(OFFICE_CHAIR));
