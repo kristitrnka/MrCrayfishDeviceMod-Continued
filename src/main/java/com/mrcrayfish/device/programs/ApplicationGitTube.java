@@ -5,6 +5,8 @@ import com.mrcrayfish.device.api.app.Layout;
 import com.mrcrayfish.device.api.app.component.Button;
 import com.mrcrayfish.device.api.utils.OnlineRequest;
 import com.mrcrayfish.device.api.utils.RenderUtil;
+import com.mrcrayfish.device.core.Laptop;
+import com.mrcrayfish.device.core.TaskBar;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.SoundHandler;
 import net.minecraft.client.audio.SoundManager;
@@ -35,9 +37,11 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class ApplicationGitTube extends Application
 {
@@ -49,10 +53,20 @@ public class ApplicationGitTube extends Application
     private static final int MAX_GIF_FRAMES = 5000;
     private static final long MAX_AUDIO_FILE_SIZE = 25L * 1024L * 1024L;
 
-    // GIFs can be huge, but the DeviceOS player is tiny.
-    // Decode source GIF, then store frames downscaled to this size.
-    private static final int GIF_RENDER_WIDTH = 266;
-    private static final int GIF_RENDER_HEIGHT = 96;
+    // GIFs can be huge, but the DeviceOS player is narrow.
+    // Decode source GIF preserving its aspect ratio at the largest width that fits.
+    private static final int DEFAULT_APP_WIDTH = 362;
+    private static final int DEFAULT_APP_HEIGHT = 164;
+    private static final int GIF_RENDER_WIDTH = 342;
+    private static final int GIF_RENDER_HEIGHT = 124;
+    private static final int MAX_WATCH_VIDEO_WIDTH = 640;
+    private static final int MAX_WATCH_VIDEO_HEIGHT = 360;
+    private static final int WATCH_VIDEO_LEFT = 10;
+    private static final int WATCH_VIDEO_TOP = 28;
+    private static final int WATCH_PLAY_LEFT = 154;
+    private static final int WATCH_RESTART_LEFT = 236;
+    private static final int WATCH_BACK_LEFT = 302;
+    private static final int WATCH_SCROLL_STEP = 14;
 
     private Layout layoutMain;
 
@@ -64,6 +78,8 @@ public class ApplicationGitTube extends Application
     private Button btnBack;
     private Button btnPlayPause;
     private Button btnRestart;
+    private Button btnLike;
+    private Button btnSubscribe;
 
     private Button[] videoButtons = new Button[MAX_VISIBLE_VIDEOS];
     private Button[] channelButtons = new Button[4];
@@ -75,6 +91,8 @@ public class ApplicationGitTube extends Application
     private int homeShuffleSeed = 1;
 
     private boolean watchPage = false;
+    private int watchScroll = 0;
+    private boolean largeScreenActive = false;
     private int selectedVideo = -1;
     private int pageMode = PAGE_HOME;
     private String selectedChannelId = "";
@@ -96,6 +114,9 @@ public class ApplicationGitTube extends Application
     private boolean audioSourceCreated = false;
 
     private final ArrayList<VideoEntry> videos = new ArrayList<>();
+    private final Set<String> likedVideos = new HashSet<>();
+    private final Set<String> viewedVideos = new HashSet<>();
+    private final Set<String> subscribedChannels = new HashSet<>();
 
     private static final int PAGE_HOME = 0;
     private static final int PAGE_CHANNELS = 1;
@@ -105,7 +126,7 @@ public class ApplicationGitTube extends Application
     @Override
     public void init(@Nullable NBTTagCompound intent)
     {
-        layoutMain = new Layout(362, 164);
+        layoutMain = new Layout(DEFAULT_APP_WIDTH, DEFAULT_APP_HEIGHT);
         layoutMain.setBackground((gui, mc, x, y, width, height, mouseX, mouseY, windowActive) ->
         {
             drawGitTubeUI(mc, x, y);
@@ -129,7 +150,9 @@ public class ApplicationGitTube extends Application
         {
             if(mouseButton == 0)
             {
+                restoreDefaultGitTubeScreen();
                 watchPage = false;
+                watchScroll = 0;
                 pageMode = PAGE_HOME;
                 selectedVideo = -1;
                 selectedChannelId = "";
@@ -173,15 +196,17 @@ public class ApplicationGitTube extends Application
         });
         layoutMain.addComponent(btnTrending);
 
-        btnBack = new GitTubeButton(5, 32, "Back");
-        btnBack.setSize(62, 14);
+        btnBack = new GitTubeButton(WATCH_BACK_LEFT, 6, "Back");
+        btnBack.setSize(54, 14);
         btnBack.setVisible(false);
         btnBack.setEnabled(false);
         btnBack.setClickListener((mouseX, mouseY, mouseButton) ->
         {
             if(mouseButton == 0)
             {
+                restoreDefaultGitTubeScreen();
                 watchPage = false;
+                watchScroll = 0;
                 playing = false;
                 playbackStarted = false;
                 stopAudio();
@@ -191,7 +216,7 @@ public class ApplicationGitTube extends Application
         });
         layoutMain.addComponent(btnBack);
 
-        btnPlayPause = new GitTubeButton(82, 145, "Play/Pause");
+        btnPlayPause = new GitTubeButton(WATCH_PLAY_LEFT, 6, "Play/Pause");
         btnPlayPause.setSize(78, 14);
         btnPlayPause.setVisible(false);
         btnPlayPause.setEnabled(false);
@@ -214,7 +239,7 @@ public class ApplicationGitTube extends Application
         });
         layoutMain.addComponent(btnPlayPause);
 
-        btnRestart = new GitTubeButton(166, 145, "Restart");
+        btnRestart = new GitTubeButton(WATCH_RESTART_LEFT, 6, "Restart");
         btnRestart.setSize(58, 14);
         btnRestart.setVisible(false);
         btnRestart.setEnabled(false);
@@ -231,6 +256,61 @@ public class ApplicationGitTube extends Application
             }
         });
         layoutMain.addComponent(btnRestart);
+
+        btnLike = new GitTubeButton(0, 6, "Like");
+        btnLike.setSize(38, 14);
+        btnLike.setVisible(false);
+        btnLike.setEnabled(false);
+        btnLike.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            if(mouseButton == 0 && selectedVideo >= 0 && selectedVideo < videos.size())
+            {
+                VideoEntry video = videos.get(selectedVideo);
+                String key = getVideoKey(video);
+
+                if(likedVideos.contains(key))
+                {
+                    likedVideos.remove(key);
+                    statusText = "Removed like.";
+                }
+                else
+                {
+                    likedVideos.add(key);
+                    statusText = "Liked " + video.title + ".";
+                }
+
+                markDirty();
+                syncButtons();
+            }
+        });
+        layoutMain.addComponent(btnLike);
+
+        btnSubscribe = new GitTubeButton(0, 6, "Sub");
+        btnSubscribe.setSize(38, 14);
+        btnSubscribe.setVisible(false);
+        btnSubscribe.setEnabled(false);
+        btnSubscribe.setClickListener((mouseX, mouseY, mouseButton) ->
+        {
+            if(mouseButton == 0 && selectedVideo >= 0 && selectedVideo < videos.size())
+            {
+                VideoEntry video = videos.get(selectedVideo);
+
+                if(subscribedChannels.contains(video.channelId))
+                {
+                    subscribedChannels.remove(video.channelId);
+                    statusText = "Unsubscribed from " + video.channelName + ".";
+                }
+                else
+                {
+                    subscribedChannels.add(video.channelId);
+                    statusText = "Subscribed to " + video.channelName + ".";
+                }
+
+                markDirty();
+                syncButtons();
+            }
+        });
+        layoutMain.addComponent(btnSubscribe);
 
         for(int i = 0; i < MAX_VISIBLE_VIDEOS; i++)
         {
@@ -334,7 +414,44 @@ public class ApplicationGitTube extends Application
             }
         }
 
+        if(watchPage)
+        {
+            if(code == Keyboard.KEY_UP)
+            {
+                adjustWatchScroll(-WATCH_SCROLL_STEP);
+                return;
+            }
+            else if(code == Keyboard.KEY_DOWN)
+            {
+                adjustWatchScroll(WATCH_SCROLL_STEP);
+                return;
+            }
+            else if(code == Keyboard.KEY_PRIOR)
+            {
+                adjustWatchScroll(-WATCH_SCROLL_STEP * 3);
+                return;
+            }
+            else if(code == Keyboard.KEY_NEXT)
+            {
+                adjustWatchScroll(WATCH_SCROLL_STEP * 3);
+                return;
+            }
+        }
+
         super.handleKeyTyped(character, code);
+    }
+
+    @Override
+    public void handleMouseScroll(int mouseX, int mouseY, boolean direction)
+    {
+        if(watchPage)
+        {
+            adjustWatchScroll(direction ? -WATCH_SCROLL_STEP : WATCH_SCROLL_STEP);
+            syncButtons();
+            return;
+        }
+
+        super.handleMouseScroll(mouseX, mouseY, direction);
     }
 
     private void openVideo(int index)
@@ -357,7 +474,9 @@ public class ApplicationGitTube extends Application
         }
 
         selectedVideo = index;
+        restoreDefaultGitTubeScreen();
         watchPage = true;
+        watchScroll = 0;
         playing = false;
         stopAudio();
         loadingGif = false;
@@ -376,7 +495,9 @@ public class ApplicationGitTube extends Application
 
     private void openChannel(ChannelEntry channel)
     {
+        restoreDefaultGitTubeScreen();
         watchPage = false;
+        watchScroll = 0;
         pageMode = PAGE_CHANNEL_PROFILE;
         selectedChannelId = channel.channelId;
         selectedChannelName = channel.channelName;
@@ -405,6 +526,7 @@ public class ApplicationGitTube extends Application
                 GifData data = decodeGif(file);
 
                 currentGif = data;
+                applyLargeWatchScreen(data);
                 currentFrame = 0;
                 lastFrameTime = System.currentTimeMillis();
                 playing = false;
@@ -688,7 +810,7 @@ public class ApplicationGitTube extends Application
                 throw new Exception("Too many frames: " + frames);
             }
 
-            double outputScale = Math.min((double) GIF_RENDER_WIDTH / (double) width, (double) GIF_RENDER_HEIGHT / (double) height);
+            double outputScale = Math.min(1.0D, Math.min((double) MAX_WATCH_VIDEO_WIDTH / (double) width, (double) MAX_WATCH_VIDEO_HEIGHT / (double) height));
 
             GifData data = new GifData();
             data.width = Math.max(1, (int) Math.round(width * outputScale));
@@ -820,9 +942,11 @@ public class ApplicationGitTube extends Application
 
     private void loadCatalog()
     {
+        restoreDefaultGitTubeScreen();
         videos.clear();
         selectedVideo = -1;
         watchPage = false;
+        watchScroll = 0;
         pageMode = PAGE_HOME;
         playing = false;
         loadingGif = false;
@@ -982,6 +1106,8 @@ public class ApplicationGitTube extends Application
     {
         boolean home = !watchPage;
 
+        moveWatchButtons();
+
         btnHome.setVisible(home);
         btnHome.setEnabled(home);
         btnChannels.setVisible(home);
@@ -997,6 +1123,20 @@ public class ApplicationGitTube extends Application
         btnPlayPause.setEnabled(watchPage && currentGif != null && currentGif.frames.size() > 0);
         btnRestart.setVisible(watchPage);
         btnRestart.setEnabled(watchPage && currentGif != null && currentGif.frames.size() > 0);
+        btnLike.setVisible(watchPage);
+        btnLike.setEnabled(watchPage && selectedVideo >= 0 && selectedVideo < videos.size());
+        btnSubscribe.setVisible(watchPage);
+        btnSubscribe.setEnabled(watchPage && selectedVideo >= 0 && selectedVideo < videos.size());
+
+        if(selectedVideo >= 0 && selectedVideo < videos.size())
+        {
+            VideoEntry video = videos.get(selectedVideo);
+            btnLike.setText(isLiked(video) ? "Liked" : "Like");
+            btnLike.setSize(38, 14);
+            btnSubscribe.setText(isSubscribed(video.channelId) ? "Subbed" : "Sub");
+            btnSubscribe.setSize(isSubscribed(video.channelId) ? 48 : 38, 14);
+            moveWatchButtons();
+        }
 
         for(int i = 0; i < videoButtons.length; i++)
         {
@@ -1011,6 +1151,36 @@ public class ApplicationGitTube extends Application
             boolean visible = home && pageMode == PAGE_CHANNELS && i < getDisplayedChannels().size();
             channelButtons[i].setVisible(visible);
             channelButtons[i].setEnabled(visible);
+        }
+    }
+
+    private void moveWatchButtons()
+    {
+        int appWidth = layoutMain != null ? layoutMain.width : DEFAULT_APP_WIDTH;
+
+        btnBack.left = appWidth - 60;
+        btnRestart.left = btnBack.left - 66;
+        btnPlayPause.left = btnRestart.left - 82;
+        btnLike.left = btnPlayPause.left - 44;
+        btnSubscribe.left = btnLike.left - (btnSubscribe.getWidth() + 4);
+        btnPlayPause.top = 6;
+        btnRestart.top = 6;
+        btnBack.top = 6;
+        btnLike.top = 6;
+        btnSubscribe.top = 6;
+
+        if(layoutMain != null)
+        {
+            btnPlayPause.xPosition = layoutMain.xPosition + btnPlayPause.left;
+            btnPlayPause.yPosition = layoutMain.yPosition + btnPlayPause.top;
+            btnRestart.xPosition = layoutMain.xPosition + btnRestart.left;
+            btnRestart.yPosition = layoutMain.yPosition + btnRestart.top;
+            btnBack.xPosition = layoutMain.xPosition + btnBack.left;
+            btnBack.yPosition = layoutMain.yPosition + btnBack.top;
+            btnLike.xPosition = layoutMain.xPosition + btnLike.left;
+            btnLike.yPosition = layoutMain.yPosition + btnLike.top;
+            btnSubscribe.xPosition = layoutMain.xPosition + btnSubscribe.left;
+            btnSubscribe.yPosition = layoutMain.yPosition + btnSubscribe.top;
         }
     }
 
@@ -1256,6 +1426,47 @@ public class ApplicationGitTube extends Application
         }
     }
 
+    private String getVideoKey(VideoEntry video)
+    {
+        return video.channelId + "/" + video.videoId;
+    }
+
+    private boolean isLiked(VideoEntry video)
+    {
+        return likedVideos.contains(getVideoKey(video));
+    }
+
+    private boolean isSubscribed(String channelId)
+    {
+        return subscribedChannels.contains(channelId);
+    }
+
+    private int getDisplayViews(VideoEntry video)
+    {
+        return parseViews(video.views) + (viewedVideos.contains(getVideoKey(video)) ? 1 : 0);
+    }
+
+    private int getDisplayLikes(VideoEntry video)
+    {
+        return parseViews(video.likes) + (isLiked(video) ? 1 : 0);
+    }
+
+    private int getDisplaySubscribers(ChannelEntry channel)
+    {
+        return parseViews(channel.subscribers) + (isSubscribed(channel.channelId) ? 1 : 0);
+    }
+
+    private void recordLocalView(VideoEntry video)
+    {
+        String key = getVideoKey(video);
+
+        if(!viewedVideos.contains(key))
+        {
+            viewedVideos.add(key);
+            markDirty();
+        }
+    }
+
     private void drawChannelList(Minecraft mc, int x, int y)
     {
         ArrayList<ChannelEntry> channels = getDisplayedChannels();
@@ -1310,7 +1521,7 @@ public class ApplicationGitTube extends Application
         drawCentered(mc, ">", headerX + 23, headerY + 19, 0xFFFFFFFF);
 
         RenderUtil.drawStringClipped(channel.channelName, headerX + 46, headerY + 20, 145, 0xFF000000, false);
-        String subscribers = channel.subscribers == null || channel.subscribers.isEmpty() ? "0" : channel.subscribers;
+        String subscribers = String.valueOf(getDisplaySubscribers(channel));
         String description = channel.description == null || channel.description.isEmpty() ? "GitTube channel" : channel.description;
 
         RenderUtil.drawStringClipped("@" + channel.channelId + " | " + subscribers + " subs | " + channel.videoCount + " video(s)", headerX + 46, headerY + 30, 190, 0xFF555555, false);
@@ -1369,34 +1580,30 @@ public class ApplicationGitTube extends Application
 
     private void drawWatchPage(Minecraft mc, int x, int y)
     {
-        Gui.drawRect(x, y, x + 362, y + 164, 0xFFEFEFEF);
+        int appWidth = layoutMain != null ? layoutMain.width : DEFAULT_APP_WIDTH;
+        int appHeight = layoutMain != null ? layoutMain.height : DEFAULT_APP_HEIGHT;
+        int playerWidth = getWatchPlayerWidth();
 
-        Gui.drawRect(x, y, x + 362, y + 25, 0xFFFFFFFF);
-        Gui.drawRect(x, y + 24, x + 362, y + 25, 0xFFCCCCCC);
-
-        Gui.drawRect(x + 8, y + 6, x + 28, y + 20, 0xFFE62117);
-        drawCentered(mc, ">", x + 18, y + 9, 0xFFFFFFFF);
-        mc.fontRenderer.drawString("GitTube", x + 32, y + 9, 0xFF000000);
-
-        Gui.drawRect(x, y + 25, x + 75, y + 164, 0xFFF7F7F7);
+        Gui.drawRect(x, y, x + appWidth, y + appHeight, 0xFFEFEFEF);
+        Gui.drawRect(x, y + 25, x + appWidth, y + appHeight, 0xFFE9E9E9);
 
         if(selectedVideo < 0 || selectedVideo >= videos.size())
         {
-            RenderUtil.drawStringClipped("No video selected.", x + 84, y + 50, 260, 0xFF555555, false);
+            RenderUtil.drawStringClipped("No video selected.", x + 10, y + 50, appWidth - 20, 0xFF555555, false);
+            drawWatchTopBar(mc, x, y);
             return;
         }
 
         VideoEntry video = videos.get(selectedVideo);
 
-        Gui.drawRect(x + 75, y + 25, x + 362, y + 164, 0xFFE9E9E9);
+        int videoMaxX = x + WATCH_VIDEO_LEFT;
+        int videoMaxY = y + WATCH_VIDEO_TOP - watchScroll;
+        int videoW = playerWidth;
+        int videoH = getWatchPlayerHeight();
+        int videoX = videoMaxX + (playerWidth - videoW) / 2;
+        int videoY = videoMaxY;
 
-        int videoMaxX = x + 82;
-        int videoMaxY = y + 33;
-        int videoW = currentGif != null ? currentGif.width : GIF_RENDER_WIDTH;
-        int videoH = currentGif != null ? currentGif.height : GIF_RENDER_HEIGHT;
-        int videoX = videoMaxX + (GIF_RENDER_WIDTH - videoW) / 2;
-        int videoY = videoMaxY + (GIF_RENDER_HEIGHT - videoH) / 2;
-
+        Gui.drawRect(x + WATCH_VIDEO_LEFT - 3, videoMaxY - 3, x + WATCH_VIDEO_LEFT + playerWidth + 3, videoMaxY + videoH + 3, 0xFF202020);
         Gui.drawRect(videoX - 1, videoY - 1, videoX + videoW + 1, videoY + videoH + 1, 0xFF111111);
         Gui.drawRect(videoX, videoY, videoX + videoW, videoY + videoH, 0xFF000000);
 
@@ -1414,10 +1621,89 @@ public class ApplicationGitTube extends Application
             drawCentered(mc, msg, videoX + videoW / 2, videoY + videoH / 2 - 4, 0xFFFFFFFF);
         }
 
-        mc.fontRenderer.drawString(video.title, x + 82, y + 133, 0xFF000000);
-        RenderUtil.drawStringClipped(video.author + " | " + video.views + " views | " + video.likes + " likes", x + 82, y + 158, 270, 0xFF555555, false);
+        int detailsY = videoMaxY + videoH + 8;
+        drawWatchDetails(mc, video, x + WATCH_VIDEO_LEFT, detailsY, playerWidth);
+        drawWatchScrollBar(x, y, appWidth);
+        drawWatchTopBar(mc, x, y);
+    }
 
-        RenderUtil.drawStringClipped(video.description, x + 230, y + 133, 120, 0xFF333333, false);
+    private void drawWatchTopBar(Minecraft mc, int x, int y)
+    {
+        int appWidth = layoutMain != null ? layoutMain.width : DEFAULT_APP_WIDTH;
+
+        Gui.drawRect(x, y, x + appWidth, y + 25, 0xFFFFFFFF);
+        Gui.drawRect(x, y + 24, x + appWidth, y + 25, 0xFFCCCCCC);
+
+        Gui.drawRect(x + 8, y + 6, x + 28, y + 20, 0xFFE62117);
+        drawCentered(mc, ">", x + 18, y + 9, 0xFFFFFFFF);
+        mc.fontRenderer.drawString("GitTube", x + 32, y + 9, 0xFF000000);
+    }
+
+    private void drawWatchDetails(Minecraft mc, VideoEntry video, int x, int y, int width)
+    {
+        Gui.drawRect(x, y, x + width, y + 86, 0xFFFFFFFF);
+        Gui.drawRect(x, y, x + width, y + 1, 0xFFCCCCCC);
+
+        RenderUtil.drawStringClipped(video.title, x + 5, y + 6, width - 10, 0xFF000000, false);
+        RenderUtil.drawStringClipped(video.author + " | " + getDisplayViews(video) + " views | " + getDisplayLikes(video) + " likes", x + 5, y + 18, width - 10, 0xFF555555, false);
+
+        String created = video.created == null || video.created.isEmpty() ? "Unknown date" : video.created;
+        RenderUtil.drawStringClipped("Duration " + video.duration + " | Posted " + created, x + 5, y + 30, width - 10, 0xFF777777, false);
+
+        mc.fontRenderer.drawString("Description", x + 5, y + 45, 0xFF000000);
+        drawWrappedWatchText(mc, video.description == null || video.description.isEmpty() ? "No description." : video.description, x + 5, y + 57, width - 13, 4, 0xFF333333);
+    }
+
+    private void drawWrappedWatchText(Minecraft mc, String text, int x, int y, int width, int maxLines, int color)
+    {
+        String[] words = text.split(" ");
+        String line = "";
+        int lineCount = 0;
+
+        for(String word : words)
+        {
+            String next = line.isEmpty() ? word : line + " " + word;
+
+            if(mc.fontRenderer.getStringWidth(next) > width && !line.isEmpty())
+            {
+                mc.fontRenderer.drawString(line, x, y + lineCount * 10, color);
+                line = word;
+                lineCount++;
+
+                if(lineCount >= maxLines)
+                {
+                    return;
+                }
+            }
+            else
+            {
+                line = next;
+            }
+        }
+
+        if(!line.isEmpty() && lineCount < maxLines)
+        {
+            mc.fontRenderer.drawString(line, x, y + lineCount * 10, color);
+        }
+    }
+
+    private void drawWatchScrollBar(int x, int y, int appWidth)
+    {
+        int maxScroll = getWatchMaxScroll();
+
+        if(maxScroll <= 0)
+        {
+            return;
+        }
+
+        int trackX = x + appWidth - 6;
+        int trackY = y + 29;
+        int trackH = 118;
+        int barH = 32;
+        int barY = trackY + (trackH - barH) * watchScroll / maxScroll;
+
+        Gui.drawRect(trackX, trackY, trackX + 3, trackY + trackH, 0xFFCCCCCC);
+        Gui.drawRect(trackX, barY, trackX + 3, barY + barH, 0xFFE62117);
     }
 
     private void drawVideoCard(Minecraft mc, VideoEntry video, int index, int appX, int appY)
@@ -1441,7 +1727,7 @@ public class ApplicationGitTube extends Application
 
         RenderUtil.drawStringClipped(video.title, x + 44, y + 2, 82, 0xFF0066CC, false);
         RenderUtil.drawStringClipped(video.author, x + 44, y + 12, 82, 0xFF555555, false);
-        RenderUtil.drawStringClipped(video.views + " views", x + 44, y + 22, 82, 0xFF777777, false);
+        RenderUtil.drawStringClipped(getDisplayViews(video) + " views", x + 44, y + 22, 82, 0xFF777777, false);
     }
 
     private void drawThumbnail(Minecraft mc, VideoEntry video, int x, int y, int w, int h)
@@ -1525,6 +1811,7 @@ public class ApplicationGitTube extends Application
         if(selectedVideo >= 0 && selectedVideo < videos.size())
         {
             VideoEntry video = videos.get(selectedVideo);
+            recordLocalView(video);
             statusText = "Playing " + video.title + " | " + currentGif.frames.size() + " frames";
         }
         else
@@ -1707,6 +1994,76 @@ public class ApplicationGitTube extends Application
         }
     }
 
+    private void adjustWatchScroll(int amount)
+    {
+        watchScroll += amount;
+        int maxScroll = getWatchMaxScroll();
+
+        if(watchScroll < 0)
+        {
+            watchScroll = 0;
+        }
+        else if(watchScroll > maxScroll)
+        {
+            watchScroll = maxScroll;
+        }
+    }
+
+    private int getWatchMaxScroll()
+    {
+        int videoHeight = getWatchPlayerHeight();
+        int contentBottom = WATCH_VIDEO_TOP + videoHeight + 8 + 86;
+        int visibleBottom = (layoutMain != null ? layoutMain.height : DEFAULT_APP_HEIGHT) - 13;
+        return Math.max(0, contentBottom - visibleBottom);
+    }
+
+    private int getWatchPlayerWidth()
+    {
+        return currentGif != null ? currentGif.width : GIF_RENDER_WIDTH;
+    }
+
+    private int getWatchPlayerHeight()
+    {
+        return currentGif != null ? currentGif.height : GIF_RENDER_HEIGHT;
+    }
+
+    private void applyLargeWatchScreen(GifData data)
+    {
+        if(data == null)
+        {
+            return;
+        }
+
+        int appWidth = Math.max(DEFAULT_APP_WIDTH, data.width + WATCH_VIDEO_LEFT * 2);
+        int appHeight = Math.max(DEFAULT_APP_HEIGHT, WATCH_VIDEO_TOP + data.height + 8);
+        int screenWidth = appWidth + 2;
+        int screenHeight = appHeight + 14 + TaskBar.BAR_HEIGHT;
+
+        Laptop.setTemporaryScreenSize(screenWidth, screenHeight);
+        layoutMain.width = appWidth;
+        layoutMain.height = appHeight;
+        largeScreenActive = appWidth > DEFAULT_APP_WIDTH || appHeight > DEFAULT_APP_HEIGHT;
+        setCurrentLayout(layoutMain);
+        adjustWatchScroll(0);
+        syncButtons();
+    }
+
+    private void restoreDefaultGitTubeScreen()
+    {
+        if(layoutMain == null)
+        {
+            return;
+        }
+
+        Laptop.resetTemporaryScreenSize();
+        layoutMain.width = DEFAULT_APP_WIDTH;
+        layoutMain.height = DEFAULT_APP_HEIGHT;
+        largeScreenActive = false;
+        watchScroll = 0;
+        setCurrentLayout(layoutMain);
+        syncButtons();
+    }
+
     private void drawCentered(Minecraft mc, String text, int x, int y, int color)
     {
         mc.fontRenderer.drawString(text, x - mc.fontRenderer.getStringWidth(text) / 2, y, color);
@@ -1715,17 +2072,65 @@ public class ApplicationGitTube extends Application
     @Override
     public void load(NBTTagCompound tagCompound)
     {
+        likedVideos.clear();
+        viewedVideos.clear();
+        subscribedChannels.clear();
+
+        loadSet(tagCompound.getString("likedVideos"), likedVideos);
+        loadSet(tagCompound.getString("viewedVideos"), viewedVideos);
+        loadSet(tagCompound.getString("subscribedChannels"), subscribedChannels);
     }
 
     @Override
     public void save(NBTTagCompound tagCompound)
     {
+        tagCompound.setString("likedVideos", saveSet(likedVideos));
+        tagCompound.setString("viewedVideos", saveSet(viewedVideos));
+        tagCompound.setString("subscribedChannels", saveSet(subscribedChannels));
+    }
+
+    private void loadSet(String raw, Set<String> target)
+    {
+        if(raw == null || raw.trim().isEmpty())
+        {
+            return;
+        }
+
+        String[] entries = raw.split(";");
+
+        for(String entry : entries)
+        {
+            entry = entry.trim();
+
+            if(!entry.isEmpty())
+            {
+                target.add(entry);
+            }
+        }
+    }
+
+    private String saveSet(Set<String> source)
+    {
+        StringBuilder builder = new StringBuilder();
+
+        for(String value : source)
+        {
+            if(builder.length() > 0)
+            {
+                builder.append(';');
+            }
+
+            builder.append(value);
+        }
+
+        return builder.toString();
     }
 
     @Override
     public void onClose()
     {
         stopAudio();
+        restoreDefaultGitTubeScreen();
         super.onClose();
     }
 

@@ -50,9 +50,10 @@ public class Window<T extends Wrappable>
 	void setHeight(int height)
 	{
 		this.height = height + 14;
-		if(this.height > 178)
+		int maxHeight = Laptop.SCREEN_HEIGHT - TaskBar.BAR_HEIGHT;
+		if(this.height > maxHeight)
 		{
-			this.height = 178;
+			this.height = maxHeight;
 		}
 	}
 

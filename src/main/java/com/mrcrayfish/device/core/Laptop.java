@@ -63,10 +63,14 @@ public class Laptop extends GuiScreen implements System
         private static boolean savedWebWallpaperLoaded = false;
         private static int savedWebWallpaperIndex = -1;
 	private static final int BORDER = 10;
-	private static final int DEVICE_WIDTH = 384;
-	private static final int DEVICE_HEIGHT = 216;
-	static final int SCREEN_WIDTH = DEVICE_WIDTH - BORDER * 2;
-	static final int SCREEN_HEIGHT = DEVICE_HEIGHT - BORDER * 2;
+	private static final int DEFAULT_DEVICE_WIDTH = 384;
+	private static final int DEFAULT_DEVICE_HEIGHT = 216;
+	private static final int DEFAULT_SCREEN_WIDTH = DEFAULT_DEVICE_WIDTH - BORDER * 2;
+	private static final int DEFAULT_SCREEN_HEIGHT = DEFAULT_DEVICE_HEIGHT - BORDER * 2;
+	private static int DEVICE_WIDTH = DEFAULT_DEVICE_WIDTH;
+	private static int DEVICE_HEIGHT = DEFAULT_DEVICE_HEIGHT;
+	public static int SCREEN_WIDTH = DEFAULT_SCREEN_WIDTH;
+	public static int SCREEN_HEIGHT = DEFAULT_SCREEN_HEIGHT;
 
 	private static System system;
 	private static BlockPos pos;
@@ -74,6 +78,22 @@ public class Laptop extends GuiScreen implements System
 
 	private Settings settings;
 	private TaskBar bar;
+
+	public static void setTemporaryScreenSize(int screenWidth, int screenHeight)
+	{
+		SCREEN_WIDTH = Math.max(DEFAULT_SCREEN_WIDTH, screenWidth);
+		SCREEN_HEIGHT = Math.max(DEFAULT_SCREEN_HEIGHT, screenHeight);
+		DEVICE_WIDTH = SCREEN_WIDTH + BORDER * 2;
+		DEVICE_HEIGHT = SCREEN_HEIGHT + BORDER * 2;
+	}
+
+	public static void resetTemporaryScreenSize()
+	{
+		SCREEN_WIDTH = DEFAULT_SCREEN_WIDTH;
+		SCREEN_HEIGHT = DEFAULT_SCREEN_HEIGHT;
+		DEVICE_WIDTH = DEFAULT_DEVICE_WIDTH;
+		DEVICE_HEIGHT = DEFAULT_DEVICE_HEIGHT;
+	}
 	private Window[] windows;
 	private Layout context = null;
 

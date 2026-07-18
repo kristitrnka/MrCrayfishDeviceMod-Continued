@@ -129,11 +129,11 @@ public class TaskBar
 			}
 		}
 
-		mc.fontRenderer.drawString(timeToString(mc.player.world.getWorldTime()), x + 334, y + 5, Color.WHITE.getRGB(), true);
+		mc.fontRenderer.drawString(timeToString(mc.player.world.getWorldTime()), x + Laptop.SCREEN_WIDTH - 30, y + 5, Color.WHITE.getRGB(), true);
                 getBootUI().renderTaskbar(mc, x, y, mouseX, mouseY);
 
 		/* Settings App */
-		int startX = x + 317;
+		int startX = x + Laptop.SCREEN_WIDTH - 47;
 		for(int i = 0; i < trayItems.size(); i++)
 		{
 			int posX = startX - (trayItems.size() - 1 - i) * 14;
@@ -174,7 +174,7 @@ public class TaskBar
 			}
 		}
 
-		int startX = x + 317;
+		int startX = x + Laptop.SCREEN_WIDTH - 47;
 		for(int i = 0; i < trayItems.size(); i++)
 		{
 			int posX = startX - (trayItems.size() - 1 - i) * 14;
